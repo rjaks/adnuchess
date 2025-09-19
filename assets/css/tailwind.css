@@ -3,7 +3,5 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    @apply bg-slate-50 text-slate-900;
-  }
+  html { @apply bg-slate-50 text-slate-900; }
 }
