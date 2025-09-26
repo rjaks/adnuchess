@@ -1,1 +1,49 @@
-<template> <div class="min-h-screen bg-gradient-to-br from-adnu-blue/10 to-adnu-gold/10"> <!-- Header --> <header class="sticky top-0 z-10 backdrop-blur bg-white/50 border-b border-white/40"> <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between"> <h1 class="font-bold text-xl"> <span class="text-adnu-blue">AdNU</span><span class="text-adnu-gold">Chess</span> </h1> <nav class="text-sm flex gap-2"> <NuxtLink to="/" class="px-3 py-1 rounded hover:bg-black/5">Home</NuxtLink> <NuxtLink to="/leaderboard" class="px-3 py-1 rounded hover:bg-black/5">Leaderboards</NuxtLink> <NuxtLink to="/account" class="px-3 py-1 rounded hover:bg-black/5">Account</NuxtLink> <NuxtLink to="/settings" class="px-3 py-1 rounded hover:bg-black/5">Settings</NuxtLink> <NuxtLink to="/faq" class="px-3 py-1 rounded hover:bg-black/5">FAQ</NuxtLink> <NuxtLink to="/modes" class="px-3 py-1 rounded hover:bg-black/5">Modes</NuxtLink> <NuxtLink to="/play" class="px-3 py-1 rounded hover:bg-black/5">Play</NuxtLink> </nav> </div> </header> <!-- Main content --> <main class="mx-auto max-w-6xl px-4 py-8"> <NuxtPage /> </main> </div> </template>
+<script setup lang="ts">
+    import { useConvexQuery } from "#imports";
+    import { api } from "~/convex/_generated/api";
+    const { data: tasks } = useConvexQuery(api.tasks.get);
+</script>
+
+
+<template>
+  <div class="min-h-screen bg-gradient-to-br from-adnu-blue/10 to-adnu-gold/10">
+    <!-- Header -->
+    <header
+      class="sticky top-0 z-10 backdrop-blur bg-white/50 border-b border-white/40"
+    >
+      <div
+        class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between"
+      >
+        <h1 class="font-bold text-xl">
+          <span class="text-adnu-blue">AdNU</span
+          ><span class="text-adnu-gold">Chess</span>
+        </h1>
+        <nav class="text-sm flex gap-2">
+          <NuxtLink to="/" class="px-3 py-1 rounded hover:bg-black/5"
+            >Home</NuxtLink
+          >
+          <NuxtLink to="/leaderboard" class="px-3 py-1 rounded hover:bg-black/5"
+            >Leaderboards</NuxtLink
+          >
+          <NuxtLink to="/account" class="px-3 py-1 rounded hover:bg-black/5"
+            >Account</NuxtLink
+          >
+          <NuxtLink to="/settings" class="px-3 py-1 rounded hover:bg-black/5"
+            >Settings</NuxtLink
+          >
+          <NuxtLink to="/faq" class="px-3 py-1 rounded hover:bg-black/5"
+            >FAQ</NuxtLink
+          >
+          <NuxtLink to="/modes" class="px-3 py-1 rounded hover:bg-black/5"
+            >Modes</NuxtLink
+          >
+          <NuxtLink to="/play" class="px-3 py-1 rounded hover:bg-black/5"
+            >Play</NuxtLink
+          >
+        </nav>
+      </div>
+    </header>
+    <!-- Main content -->
+    <main class="mx-auto max-w-6xl px-4 py-8"><NuxtPage /></main>
+  </div>
+</template>
