@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div
-    class="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#021d94]/15 via-[#021d94]/5 to-[#ffaa00]/15 text-slate-800"
+    class="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#021d94]/15 via-[#021d94]/5 to-[#ffaa00]/15 text-slate-800"
   >
     <div class="pointer-events-none fixed inset-0 -z-30 opacity-80">
       <div class="absolute left-[5%] top-[12%] h-72 w-72 rounded-full bg-[#021d94]/30 blur-3xl"></div>
@@ -18,7 +18,7 @@
       Skip to main content
     </a>
     <header v-if="showHeader" class="sticky top-0 z-40 border-b border-white/40 bg-white/60 backdrop-blur-xl">
-      <div class="mx-auto flex h-20 max-w-6xl items-center justify-between px-4">
+      <div class="mx-auto relative flex h-20 max-w-6xl items-center justify-between px-4">
         <NuxtLink to="/" class="flex items-center gap-3 font-semibold text-lg text-slate-700">
           <span
             class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-glass"
@@ -60,8 +60,7 @@
           </svg>
         </button>
         <nav
-          class="absolute inset-x-4 top-[calc(100%+0.75rem)] mx-auto rounded-3xl border border-white/70 bg-white/80 p-4 shadow-xl backdrop-blur-xl transition md:static md:inset-auto md:mx-0 md:flex md:h-auto md:items-center md:gap-1 md:rounded-full md:border-transparent md:bg-white/40 md:px-2 md:py-1 md:shadow-sm"
-          :class="isMenuOpen ? 'grid gap-3' : 'hidden md:flex'"
+          class="hidden md:flex md:h-auto md:items-center md:gap-1 md:rounded-full md:border-transparent md:bg-white/40 md:px-2 md:py-1 md:shadow-sm"
         >
           <NuxtLink
             v-for="item in navItems"
@@ -69,17 +68,11 @@
             :to="item.to"
             :aria-current="isActive(item.to) ? 'page' : undefined"
             :class="linkClass(item.to)"
-            @click="isMenuOpen = false"
+            @click="closeMenu"
           >
             {{ item.label }}
           </NuxtLink>
-          <NuxtLink
-            to="/play"
-            class="md:ml-2 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#021d94] to-[#ffaa00] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-[#021d94]/20 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-xl"
-            @click="isMenuOpen = false"
-          >
-            Play Now
-          </NuxtLink>
+
           <div
             v-if="isLoggedIn"
             class="flex flex-col gap-2 md:flex-row md:items-center md:gap-2"
@@ -87,7 +80,7 @@
             <NuxtLink
               to="/account"
               class="flex w-full items-center justify-between gap-3 rounded-full border border-[#021d94]/30 bg-white/80 px-4 py-2 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/60 hover:bg-white md:w-auto"
-              @click="isMenuOpen = false"
+              @click="closeMenu"
             >
               <span class="flex items-center gap-3">
                 <span
@@ -118,17 +111,97 @@
             v-else
             to="/welcome"
             class="w-full rounded-full border border-[#021d94]/30 bg-white/80 px-4 py-2 text-center text-sm font-semibold text-[#021d94] transition hover:border-[#021d94]/60 hover:bg-white md:w-auto"
-            @click="isMenuOpen = false"
+            @click="closeMenu"
           >
             Sign in
           </NuxtLink>
         </nav>
+        <Transition name="fade">
+          <div
+            v-if="isMenuOpen"
+            class="fixed inset-0 z-30 bg-white/80 backdrop-blur-sm md:hidden"
+            @click="closeMenu"
+          />
+        </Transition>
+        <Transition name="mobile-nav">
+          <nav
+            v-if="isMenuOpen"
+            class="md:hidden absolute left-4 right-4 top-[calc(100%+0.75rem)] z-40 flex flex-col gap-3 rounded-3xl border border-white/70 bg-white p-4 shadow-xl backdrop-blur-xl"
+          >
+            <NuxtLink
+              v-for="item in navItems"
+              :key="'mobile-' + item.to"
+              :to="item.to"
+              :aria-current="isActive(item.to) ? 'page' : undefined"
+              :class="[linkClass(item.to), 'w-full text-left']"
+              @click="closeMenu"
+            >
+              {{ item.label }}
+            </NuxtLink>
+
+            <div v-if="isLoggedIn" class="flex flex-col gap-3 pt-1">
+              <NuxtLink
+                to="/account"
+                class="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#021d94]/30 bg-white px-4 py-3 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/60 hover:bg-white"
+                @click="closeMenu"
+              >
+                <span class="flex items-center gap-3">
+                  <span
+                    v-if="authUser?.picture"
+                    class="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-white/70 bg-white/60 shadow-sm"
+                  >
+                    <img :src="authUser.picture" :alt="authUserName" class="h-full w-full object-cover" />
+                  </span>
+                  <span
+                    v-else
+                    class="grid h-9 w-9 place-items-center rounded-full bg-[#021d94]/15 text-sm font-bold uppercase text-[#021d94]"
+                  >
+                    {{ authUserInitials }}
+                  </span>
+                  <span>{{ authUserName }}</span>
+                </span>
+                <span class="text-xs uppercase tracking-wide text-[#021d94]/70">Profile</span>
+              </NuxtLink>
+              <button
+                type="button"
+                class="w-full rounded-2xl border border-transparent bg-[#021d94]/10 px-4 py-3 text-sm font-semibold text-[#021d94] transition hover:bg-[#021d94]/15"
+                @click="handleLogout"
+              >
+                Sign out
+              </button>
+            </div>
+            <NuxtLink
+              v-else
+              to="/welcome"
+              class="w-full rounded-2xl border border-[#021d94]/30 bg-white px-4 py-3 text-center text-sm font-semibold text-[#021d94] transition hover:border-[#021d94]/60 hover:bg-white"
+              @click="closeMenu"
+            >
+              Sign in
+            </NuxtLink>
+          </nav>
+        </Transition>
       </div>
     </header>
-    <main id="main-content" class="relative mx-auto max-w-6xl px-4 pb-24 pt-12">
+    <main id="main-content" class="relative mx-auto flex-1 max-w-6xl px-4 pb-24 pt-12">
       <div class="pointer-events-none absolute inset-x-[-40vw] top-[-10vw] -z-10 h-[50vw] rounded-[40%] bg-gradient-to-br from-white/70 via-transparent to-white/20 blur-3xl"></div>
       <NuxtPage />
     </main>
+    <footer class="border-t border-white/40 bg-white/60 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-6xl items-center justify-center px-4 py-6">
+        <p class="flex items-center gap-2 text-sm text-slate-600">
+          <span>Made with</span>
+          <span class="inline-flex h-5 w-5 items-center justify-center text-[#ff4d6d]" aria-hidden="true">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+          </span>
+          <span class="sr-only">love</span>
+          <span>by</span>
+          <span class="font-semibold text-[#021d94]">IMissYou</span>
+          <span class="font-semibold text-[#021d94]">Copyright &copy; 2025</span>
+        </p>
+      </div>
+    </footer>
   </div>
 </template>
 
@@ -157,6 +230,9 @@ const navItems: readonly NavigationItem[] = [
 ] as const
 
 const isMenuOpen = ref(false)
+const closeMenu = () => {
+  isMenuOpen.value = false
+}
 const route = useRoute()
 const currentPath = computed(() => route.path)
 const pointer = ref<PointerState>({ x: 720, y: 360 })
@@ -219,7 +295,7 @@ const handlePointerMove = (event: PointerEvent) => {
 
 const handleLogout = async () => {
   await logout()
-  isMenuOpen.value = false
+  closeMenu()
   await navigateTo('/welcome')
 }
 
@@ -236,9 +312,40 @@ onBeforeUnmount(() => {
 watch(
   () => route.fullPath,
   () => {
-    isMenuOpen.value = false
+    closeMenu()
   }
 )
 </script>
 
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+.mobile-nav-enter-active,
+.mobile-nav-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.mobile-nav-enter-from,
+.mobile-nav-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>
 

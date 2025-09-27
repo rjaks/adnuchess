@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="space-y-16 pb-12">
     <div class="grid items-center gap-12 lg:grid-cols-[1.1fr,0.9fr]">
       <div class="relative overflow-hidden rounded-4xl border border-white/60 bg-white/70 p-10 shadow-glass backdrop-blur-xl">
@@ -273,48 +273,48 @@ const highlightCards: readonly HighlightCard[] = [
 
 const spotlightModes: readonly SpotlightMode[] = [
   {
-    key: 'gauntlet',
-    title: 'Arena Gauntlet',
-    tag: 'Live',
-    headline: 'Lightning-fast queues',
-    summary: 'Continuous matchmaking that keeps the adrenaline flowing.',
+    key: 'puzzlenida',
+    title: 'PuzzleNida',
+    tag: 'Puzzle',
+    headline: 'Solve pre-built scenarios',
+    summary: 'Race against the move limit to crack curated AdNU puzzle boards.',
     description:
-      'Opt into a rolling arena where matches snap into place with minimal downtime. Perfect for testing new prep or grinding your Elo curve.',
+      'PuzzleNida! drops you into handcrafted mid-game positions with a clear objective. Plan precise sequences, beat the move cap, and compare streaks with the campus puzzle ladder.',
     highlights: [
-      'Seamless auto-rematch when both players opt in',
-      'Momentum boosts give bonus points for streaks',
-      'Spectator rail with real-time emoji reactions',
-      'Integrated voice notes for post-game reflections'
+      'Pre-arranged boards inspired by collegiate games',
+      'Move counter that rewards perfect solutions',
+      'Hints unlockable with earned puzzle points',
+      'Weekly puzzle packs from club tacticians'
     ]
   },
   {
-    key: 'skirmish',
-    title: 'Skirmish Teams',
-    tag: 'Co-op',
-    headline: 'Squad-based rivalries',
-    summary: 'Form alliances with classmates and tag-team against other faculties.',
+    key: 'battle-royale',
+    title: 'Battle Royale',
+    tag: 'Draft',
+    headline: 'Build your army first',
+    summary: 'Draft chess pieces, deploy custom lineups, and clash on classic boards.',
     description:
-      'Queue up with your course-mates, rotate boards mid-game, and strategise in shared team rooms with glassy overlays.',
+      'Before the first move, alternate drafting queens, rooks, bishops, knights, and pawns to forge your dream roster. Once the timer hits zero, place your pieces and dive into chaotic, strategic battles.',
     highlights: [
-      'Faculty vs. faculty ladders with seasonal resets',
-      'Dynamic board handoffs after each phase',
-      'Shared notebook that saves annotated lines',
-      'Weekly scrimmages streamed on campus screens'
+      'Snake draft with visibility into your opponent picks',
+      'Budget system to balance power selections',
+      'Pre-game sandbox to map opening formations',
+      'Event-ready scorecards for campus tournaments'
     ]
   },
   {
-    key: 'zen',
-    title: 'Zen Puzzles',
-    tag: 'Solo',
-    headline: 'Calm, meditative drills',
-    summary: 'Immerse in chilled ambient puzzles with adaptive difficulty.',
+    key: 'quizmania',
+    title: 'QuizMania',
+    tag: 'Trivia',
+    headline: 'Test your chess knowledge',
+    summary: 'Fast-paced quiz bee showdowns covering tactics, history, and theory.',
     description:
-      'Slow down with curated situational drills, each wrapped in soft gradients and gentle soundscapes generated for focus.',
+      'QuizMania swaps boards for buzzers. Answer timed questions, bet on difficulty tiers, and climb the knowledge ladder alone or with classmates cheering you on.',
     highlights: [
-      'Adaptive rating tracks your improvements',
-      'Timer-free mode with optional guidance',
-      'Ambient soundtrack that syncs to puzzle tension',
-      'Shareable puzzle playlists for your club'
+      'Timed rounds with escalating point multipliers',
+      'Question banks curated by AdNU coaches',
+      'Power-ups to freeze rivals or reveal hints',
+      'Seasonal leaderboards for trivia champs'
     ]
   }
 ]
@@ -344,4 +344,7 @@ const activeMode = ref(spotlightModes[0]?.key ?? '')
 
 const activeModeData = computed(() => spotlightModes.find((mode) => mode.key === activeMode.value))
 </script>
+
+
+
 

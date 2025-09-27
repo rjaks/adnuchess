@@ -2,7 +2,7 @@
   <div class="mx-auto max-w-5xl px-4 py-16">
     <header class="mb-12 space-y-3 text-center">
       <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/70">FAQ</p>
-      <h1 class="text-4xl font-bold text-slate-900 sm:text-5xl">Questions, answered.</h1>
+      <h1 class="text-4xl font-bold text-slate-900 sm:text-5xl">Questions? answered.</h1>
       <p class="mx-auto max-w-2xl text-base text-slate-600 sm:text-lg">
         Everything you need to know about signing in, queuing for matches, and keeping the arena running smoothly.
       </p>
@@ -98,7 +98,7 @@
     <footer class="mt-20 rounded-3xl border border-[#021d94]/10 bg-[#021d94]/5 p-10 text-center shadow-glass backdrop-blur">
       <p class="text-base font-semibold text-[#021d94]">Can't find what you need?</p>
       <p class="mt-2 text-sm text-slate-600">
-        Message the moderators inside the arena chat or email <span class="font-semibold">adnuchess@gmail.com</span>. We're happy
+        Contact us via email <span class="font-semibold">adnuchess@gmail.com</span>. We're happy
         to help with onboarding, match disputes, or tournament prep.
       </p>
     </footer>
