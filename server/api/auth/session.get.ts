@@ -1,5 +1,5 @@
 import { defineEventHandler, getCookie } from 'h3'
-import { getSession } from '~/server/utils/sessionStore'
+import { refreshSession } from '~/server/utils/sessionStore'
 import { getUserById, toProfile } from '~/server/utils/userStore'
 
 export default defineEventHandler(async (event) => {
@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     return { user: null }
   }
 
-  const session = await getSession(sessionId)
+  const session = await refreshSession(sessionId) // Use refresh instead of getSession
   if (!session) {
     return { user: null }
   }

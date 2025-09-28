@@ -1,5 +1,6 @@
 const googleClientId = process.env.GOOGLE_CLIENT_ID || ''
 const publicGoogleClientId = process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || ''
+const sessionTtlDays = parseInt(process.env.SESSION_TTL_DAYS || '7')
 
 export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
@@ -8,6 +9,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-09-19',
   runtimeConfig: {
     googleClientId,
+    sessionTtlDays,
     public: {
       googleClientId: publicGoogleClientId,
     },
