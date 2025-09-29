@@ -1,6 +1,6 @@
 import { createError, defineEventHandler, getCookie, readBody } from 'h3'
 import { saveMatch, type MatchRecord } from '~/server/utils/chessStore'
-import { getSession } from '~/server/utils/sessionStore'
+import { getUserSession } from '~/server/utils/sessionStore'
 import { recordMatchResult } from '~/server/utils/userStore'
 
 type SaveMatchPayload = {
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
   }
 
-  const session = await getSession(sessionId)
+  const session = await getUserSession(sessionId)
   if (!session) {
     throw createError({ statusCode: 401, statusMessage: 'Session expired' })
   }

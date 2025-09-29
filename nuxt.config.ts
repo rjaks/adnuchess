@@ -7,6 +7,7 @@ export default defineNuxtConfig({
   tailwindcss: { cssPath: '~/assets/css/tailwind.css' },
   css: [],
   compatibilityDate: '2025-09-19',
+  ssr: true,
   runtimeConfig: {
     googleClientId,
     sessionTtlDays,
@@ -19,4 +20,8 @@ export default defineNuxtConfig({
       inline: ['google-auth-library'],
     },
   },
+  // Ensure proper hydration without mismatches
+  experimental: {
+    payloadExtraction: false
+  }
 })

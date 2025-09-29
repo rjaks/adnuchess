@@ -42,7 +42,7 @@ export const createSession = async (user: SessionUser) => {
   return record
 }
 
-export const getSession = async (id: string) => {
+export const getUserSession = async (id: string) => {
   const record = await storage().getItem<SessionRecord | null>(`session:${id}`)
   if (!record) {
     return null

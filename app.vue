@@ -243,12 +243,15 @@ const showHeader = computed(() => !hideHeaderPaths.some((path) => currentPath.va
 
 
 const { user: authUser, refresh, logout } = useAuth()
-// Preload session on server during SSR using useAsyncData to avoid direct process.server checks
-const { data: sessionData } = await useAsyncData('session', () =>
-  $fetch<{ user: AuthUser | null }>('/api/auth/session')
-)
-if (sessionData.value?.user) {
-  authUser.value = sessionData.value.user
+
+// On server-side, try to get auth state for proper SSR
+if (process.server) {
+  try {
+    await refresh()
+  } catch (error) {
+    // Ignore server-side auth errors
+    console.debug('Server-side auth refresh failed:', error)
+  }
 }
 
 const isActive = (target: string) => {
@@ -300,7 +303,6 @@ const handleLogout = async () => {
 }
 
 onMounted(() => {
-  refresh()
   pointer.value = { x: window.innerWidth / 2, y: window.innerHeight / 3 }
   window.addEventListener('pointermove', handlePointerMove, { passive: true })
 })
