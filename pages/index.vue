@@ -16,10 +16,10 @@
         </p>
         <div class="mt-8 flex flex-wrap gap-4">
           <NuxtLink
-            to="/play"
+            to="/matchmaking"
             class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#021d94] to-[#ffaa00] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#021d94]/25 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-xl"
           >
-            <span>Find a Match</span>
+            <span>Find Player Match</span>
             <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <path
                 d="M5 10h7M10 5l5 5-5 5"
@@ -29,6 +29,12 @@
                 stroke-linejoin="round"
               />
             </svg>
+          </NuxtLink>
+          <NuxtLink
+            to="/play"
+            class="inline-flex items-center justify-center gap-2 rounded-full border border-[#021d94]/30 bg-white/70 px-6 py-3 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/50 hover:bg-white"
+          >
+            Play vs AI
           </NuxtLink>
           <NuxtLink
             to="/modes"
@@ -332,7 +338,8 @@ const trendingRivals: readonly Rival[] = [
 ]
 
 const featureLinks: readonly FeatureLink[] = [
-  { to: '/play', title: 'Play AdNU Chess!', desc: 'Bot, fellow Atenean, or AI Coach' },
+  { to: '/matchmaking', title: 'Player vs Player', desc: 'Real-time matches against fellow Ateneans' },
+  { to: '/play', title: 'Play vs AI', desc: 'Challenge Stockfish engine' },
   { to: '/modes', title: 'Extra Modes', desc: 'PuzzleNida, Battle Royale, QuizMania' },
   { to: '/account', title: 'Account', desc: 'Profile, roles, preferences' },
   { to: '/leaderboard', title: 'Leaderboards', desc: 'Elo tiers and departments' },
