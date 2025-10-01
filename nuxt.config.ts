@@ -1,5 +1,6 @@
 const googleClientId = process.env.GOOGLE_CLIENT_ID || ''
-const publicGoogleClientId = process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || ''
+const publicGoogleClientId =
+  process.env.NUXT_PUBLIC_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || ''
 
 export default defineNuxtConfig({
   modules: ['@nuxtjs/tailwindcss'],
@@ -10,6 +11,8 @@ export default defineNuxtConfig({
     googleClientId,
     public: {
       googleClientId: publicGoogleClientId,
+      // 👇 add this line
+      convexUrl: process.env.NUXT_PUBLIC_CONVEX_URL || '',
     },
   },
   nitro: {
