@@ -16,11 +16,32 @@
             {{ initials }}
           </span>
           <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/70">AdNU Player Profile</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/70">
+              AdNU Player Profile
+            </p>
             <h1 class="text-3xl font-bold text-slate-900">{{ profile?.name }}</h1>
             <p class="text-sm text-slate-500">{{ profile?.email }}</p>
+
+            <!-- NEW: Role pill / link -->
+            <div class="mt-2">
+              <span
+                v-if="roleLabel"
+                class="inline-block rounded-full bg-[#021d94] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white"
+              >
+                {{ roleLabel }}
+              </span>
+              <NuxtLink
+                v-else
+                to="/profile-setup"
+                class="text-xs font-medium text-[#021d94] underline"
+              >
+                Complete your profile (set role)
+              </NuxtLink>
+            </div>
+            <!-- /NEW -->
           </div>
         </div>
+
         <div class="rounded-3xl border border-[#021d94]/20 bg-[#021d94]/10 px-5 py-4 text-sm text-[#021d94]">
           <p class="font-semibold">Arena Record</p>
           <p class="text-xs uppercase tracking-[0.3em] text-[#021d94]/70">{{ totalMatches }} Matches</p>
@@ -48,11 +69,15 @@
               Unlocked
             </span>
           </li>
-          <li v-if="achievements.length === 0" class="rounded-2xl border border-dashed border-white/70 px-4 py-3 text-sm text-slate-500">
+          <li
+            v-if="achievements.length === 0"
+            class="rounded-2xl border border-dashed border-white/70 px-4 py-3 text-sm text-slate-500"
+          >
             Play more matches to unlock your first achievement.
           </li>
         </ul>
       </div>
+
       <div class="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-inner">
         <h2 class="text-lg font-semibold text-slate-900">Badges</h2>
         <p class="text-sm text-slate-500">Collectable mementos for your journey across the arena.</p>
@@ -65,7 +90,10 @@
             <p class="font-semibold text-[#021d94]">{{ badge.label }}</p>
             <p class="text-xs uppercase tracking-wide text-slate-500">Unlocked</p>
           </div>
-          <p v-if="badges.length === 0" class="rounded-2xl border border-dashed border-white/70 px-4 py-3 text-sm text-slate-500">
+          <p
+            v-if="badges.length === 0"
+            class="rounded-2xl border border-dashed border-white/70 px-4 py-3 text-sm text-slate-500"
+          >
             Secure your first win to start earning badges.
           </p>
         </div>
@@ -75,32 +103,46 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { api } from '@/convex/_generated/api' // if '~' alias complains, use '@/'
+const { $convex } = useNuxtApp()
 
 const { user, refresh } = useAuth()
 
 onMounted(async () => {
-  if (!user.value) {
-    await refresh()
+  if (!user.value) await refresh()
+  if (user.value) {
+    // NEW: fetch Convex profile to get role (and elo if you want later)
+    convexProfile.value = await $convex.query(api.profiles.getByUserId, {
+      userId: user.value.id,
+    })
   }
 })
 
 const profile = computed(() => user.value)
 
+// NEW: Convex profile + role pill text
+const convexProfile = ref<any | null>(null)
+const roleLabel = computed(() => {
+  const r = convexProfile.value?.role as string | undefined
+  return r ? r.charAt(0).toUpperCase() + r.slice(1) : ''
+})
+
 const initials = computed(() => {
-  if (!profile.value) {
-    return 'AU'
-  }
+  if (!profile.value) return 'AU'
   const source = profile.value.name || profile.value.email
   const parts = source.split(/[\s@._]+/).filter(Boolean)
-  return parts.slice(0, 2).map((segment) => segment.charAt(0).toUpperCase()).join('') || 'AU'
+  return (
+    parts
+      .slice(0, 2)
+      .map((segment) => segment.charAt(0).toUpperCase())
+      .join('') || 'AU'
+  )
 })
 
 const totalMatches = computed(() => {
-  if (!profile.value) {
-    return 0
-  }
+  if (!profile.value) return 0
   const { wins, losses, draws } = profile.value.stats
   return wins + losses + draws
 })
