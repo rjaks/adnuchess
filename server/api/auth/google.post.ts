@@ -53,11 +53,15 @@ export default defineEventHandler(async (event) => {
   })
 
   const secure = process.env.NODE_ENV === 'production'
+  const runtimeConfig = useRuntimeConfig()
+  const ttlDays = runtimeConfig.sessionTtlDays || 7
+  const maxAge = 60 * 60 * 24 * ttlDays // Match session TTL
+  
   setCookie(event, 'adnu_session', session.id, {
     httpOnly: true,
     secure,
     sameSite: 'lax',
-    maxAge: 60 * 60 * 12,
+    maxAge,
     path: '/',
   })
 

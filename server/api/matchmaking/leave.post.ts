@@ -1,5 +1,5 @@
 import { createError, defineEventHandler, getCookie } from 'h3'
-import { listMatches } from '~/server/utils/chessStore'
+import { useStorage } from '#imports'
 import { getUserSession } from '~/server/utils/sessionStore'
 
 export default defineEventHandler(async (event) => {
@@ -13,8 +13,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Session expired' })
   }
 
-  const matches = await listMatches()
-  const playerMatches = matches.filter((match) => match.meta && (match.meta as Record<string, unknown>).playerId === session.user.id)
-
-  return { matches: playerMatches }
+  try {
+    const storage = useStorage('matchmaking')
+    await storage.removeItem(`queue:${session.user.id}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to leave queue:', error)
+    return { success: false, message: 'Failed to leave matchmaking queue' }
+  }
 })
