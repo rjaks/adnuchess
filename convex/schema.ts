@@ -16,4 +16,31 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_email", ["email"]),
+
+  games: defineTable({
+    gameId: v.string(),
+    fen: v.string(),
+    lastMove: v.optional(v.string()),
+    lastMoveTime: v.number(),
+    currentTurn: v.union(v.literal("white"), v.literal("black")),
+    player1: v.object({
+      id: v.string(),
+      name: v.string(),
+      color: v.union(v.literal("white"), v.literal("black"))
+    }),
+    player2: v.object({
+      id: v.string(),
+      name: v.string(),
+      color: v.union(v.literal("white"), v.literal("black"))
+    }),
+    status: v.union(v.literal("waiting"), v.literal("active"), v.literal("finished")),
+    winner: v.optional(v.string()),
+    gameMode: v.string(),
+    createdAt: v.number(),
+    moveHistory: v.array(v.string()),
+  })
+    .index("by_gameId", ["gameId"])
+    .index("by_player", ["player1.id"])
+    .index("by_player2", ["player2.id"])
+    .index("by_status", ["status"]),
 });

@@ -40,19 +40,41 @@ export default defineEventHandler(async (event) => {
     const storage = useStorage('matchmaking')
     const gameStorage = useStorage('chess-games')
     
-    // First check if player has an active game
-    const gameKeys = await gameStorage.getKeys('game:')
-    
-    for (const key of gameKeys) {
-      const game = await gameStorage.getItem<GameState>(key)
-      if (game && 
-          (game.player1?.id === session.user.id || game.player2?.id === session.user.id) &&
-          game.status === 'active') {
+    // First check if player has an active game in Convex
+    const { $convex } = event.context
+    try {
+      const activeGames = await $convex.query('games:getGamesByPlayerId', { 
+        playerId: session.user.id 
+      })
+      
+      // Find first active game
+      const activeGame = activeGames.find((game: any) => game.status === 'active')
+      
+      if (activeGame) {
         return {
           inQueue: false,
           matchFound: true,
-          gameId: game.id,
-          playerColor: game.player1.id === session.user.id ? game.player1.color : game.player2.color
+          gameId: activeGame.gameId,
+          playerColor: activeGame.player1.id === session.user.id ? activeGame.player1.color : activeGame.player2.color
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to query Convex games, falling back to local storage:', error)
+      
+      // Fallback to local storage for backward compatibility
+      const gameKeys = await gameStorage.getKeys('game:')
+      
+      for (const key of gameKeys) {
+        const game = await gameStorage.getItem<GameState>(key)
+        if (game && 
+            (game.player1?.id === session.user.id || game.player2?.id === session.user.id) &&
+            game.status === 'active') {
+          return {
+            inQueue: false,
+            matchFound: true,
+            gameId: game.id,
+            playerColor: game.player1.id === session.user.id ? game.player1.color : game.player2.color
+          }
         }
       }
     }

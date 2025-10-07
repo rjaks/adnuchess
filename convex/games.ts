@@ -1,0 +1,198 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import { Chess } from "chess.js";
+
+export const getGameById = query({
+  args: { gameId: v.string() },
+  handler: async (ctx, { gameId }) => {
+    return await ctx.db
+      .query("games")
+      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+      .first();
+  },
+});
+
+export const getGamesByPlayerId = query({
+  args: { playerId: v.string() },
+  handler: async (ctx, { playerId }) => {
+    const player1Games = await ctx.db
+      .query("games")
+      .withIndex("by_player", (q) => q.eq("player1.id", playerId))
+      .collect();
+
+    const player2Games = await ctx.db
+      .query("games")
+      .withIndex("by_player2", (q) => q.eq("player2.id", playerId))
+      .collect();
+
+    return [...player1Games, ...player2Games];
+  },
+});
+
+export const createGame = mutation({
+  args: {
+    gameId: v.string(),
+    player1: v.object({
+      id: v.string(),
+      name: v.string(),
+      color: v.union(v.literal("white"), v.literal("black"))
+    }),
+    player2: v.object({
+      id: v.string(),
+      name: v.string(),
+      color: v.union(v.literal("white"), v.literal("black"))
+    }),
+    gameMode: v.string(),
+  },
+  handler: async (ctx, { gameId, player1, player2, gameMode }) => {
+    console.log(`Creating game ${gameId} with players ${player1.id} and ${player2.id}`);
+    
+    const now = Date.now();
+    
+    // Check if a game with this ID already exists
+    const existingGame = await ctx.db
+      .query("games")
+      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+      .first();
+    
+    if (existingGame) {
+      console.log(`Game with ID ${gameId} already exists`);
+      return existingGame._id; // Return existing game ID
+    }
+    
+    // Always ensure player1 is white and player2 is black to avoid confusion
+    const fixedPlayer1 = {
+      id: player1.id,
+      name: player1.name,
+      color: "white" as const
+    };
+    
+    const fixedPlayer2 = {
+      id: player2.id,
+      name: player2.name,
+      color: "black" as const
+    };
+    
+    console.log(`Player 1 (${fixedPlayer1.name}): white, Player 2 (${fixedPlayer2.name}): black`);
+    
+    // Initialize a new chess game
+    const chess = new Chess();
+    const initialFen = chess.fen();
+    console.log(`Initial FEN: ${initialFen}`);
+    
+    const gameDoc = {
+      gameId,
+      fen: initialFen,
+      lastMove: "",  // Use empty string instead of null for consistency
+      lastMoveTime: now,
+      currentTurn: "white" as const, // White always starts
+      player1: fixedPlayer1,
+      player2: fixedPlayer2,
+      status: "active" as const,
+      gameMode,
+      createdAt: now,
+      moveHistory: []
+    };
+    
+    console.log(`Creating new game with current turn: ${gameDoc.currentTurn}`);
+    
+    return await ctx.db.insert("games", gameDoc);
+  },
+});
+
+export const makeMove = mutation({
+  args: {
+    gameId: v.string(),
+    move: v.string(),
+    playerId: v.string(),
+  },
+  handler: async (ctx, { gameId, move, playerId }) => {
+    console.log(`Making move: ${move} by player ${playerId} in game ${gameId}`);
+    
+    // Find the game
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+      .first();
+    
+    if (!game) {
+      throw new Error("Game not found");
+    }
+    
+    // Check if it's the player's turn
+    const isPlayer1 = game.player1.id === playerId;
+    const isPlayer2 = game.player2.id === playerId;
+    
+    if (!isPlayer1 && !isPlayer2) {
+      throw new Error("You are not a player in this game");
+    }
+    
+    const playerColor = isPlayer1 ? game.player1.color : game.player2.color;
+    
+    console.log(`Player color: ${playerColor}, Current turn: ${game.currentTurn}`);
+    
+    if (game.currentTurn !== playerColor) {
+      throw new Error(`It is not your turn. Current turn is ${game.currentTurn}, your color is ${playerColor}`);
+    }
+    
+    // Validate and apply move
+    const chess = new Chess(game.fen);
+    
+    // Debug info before making move
+    console.log(`Current FEN: ${game.fen}`);
+    console.log(`Current turn in chess.js: ${chess.turn() === 'w' ? 'white' : 'black'}`);
+    
+    const moveResult = chess.move(move);
+    
+    if (!moveResult) {
+      throw new Error(`Invalid move: ${move}`);
+    }
+    
+    // Debug info after making move
+    console.log(`New FEN after move: ${chess.fen()}`);
+    console.log(`New turn in chess.js: ${chess.turn() === 'w' ? 'white' : 'black'}`);
+    
+    // Update game state
+    const now = Date.now();
+    
+    // Determine next turn
+    const nextTurn = game.currentTurn === "white" ? "black" : "white";
+    console.log(`Switching turn from ${game.currentTurn} to ${nextTurn}`);
+    
+    // Build update object
+    const patch: Record<string, any> = {
+      fen: chess.fen(),
+      lastMove: move,
+      lastMoveTime: now,
+      currentTurn: nextTurn,
+      moveHistory: [...game.moveHistory, move]
+    };
+    
+    // Check for game end conditions
+    if (chess.game_over()) {
+      console.log("Game is over");
+      patch.status = "finished";
+      
+      if (chess.in_checkmate()) {
+        // Current player (who just moved) wins
+        patch.winner = playerId;
+        console.log(`Player ${playerId} wins by checkmate`);
+      } else if (chess.in_draw()) {
+        // Draw
+        patch.winner = "draw";
+        console.log("Game ended in draw");
+      }
+    }
+    
+    // Update the game in database
+    await ctx.db.patch(game._id, patch);
+    
+    console.log("Game updated successfully");
+    
+    return {
+      success: true,
+      gameId,
+      nextTurn
+    };
+  },
+});

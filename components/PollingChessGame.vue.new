@@ -1,14 +1,5 @@
 <template>
   <div class="space-y-6">
-    <!-- Debug Panel -->
-    <ChessDebugPanel 
-      :game-id="props.gameId"
-      :game-state="gameState"
-      :my-color="myColor"
-      :is-my-turn="isMyTurn"
-      @refresh="loadGameState"
-    />
-    
     <!-- Game Loading -->
     <div v-if="!gameLoaded" class="text-center py-12">
       <div class="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/80 px-6 py-3 shadow-lg">
@@ -137,20 +128,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAuth } from '~/composables/useAuth'
-import { Chess } from 'chess.js'
+import { Chess, type PieceSymbol, type Square } from 'chess.js'
 import { api } from '~/convex/_generated/api'
-
-// Define Chess.js types since they're not exported properly
-type PieceSymbol = 'p' | 'n' | 'b' | 'r' | 'q' | 'k'
-type Square = string // a1, a2, etc.
-type Move = {
-  color: 'w' | 'b'
-  from: Square
-  to: Square
-  piece: PieceSymbol
-  san: string
-  // Other properties that may be needed
-}
 
 const props = defineProps<{
   gameId: string
@@ -206,44 +185,20 @@ const connectionStatusClass = computed(() => {
 // Game computed properties
 const myColor = computed(() => {
   if (!gameState.value || !user.value) return 'white'
-  
-  // Check if I'm player1 or player2
-  if (gameState.value.player1.id === user.value.id) {
-    return gameState.value.player1.color 
-  } else if (gameState.value.player2.id === user.value.id) {
-    return gameState.value.player2.color
-  }
-  
-  // Fallback to observer mode
-  return 'white'
+  return gameState.value.player1.id === user.value.id 
+    ? gameState.value.player1.color 
+    : gameState.value.player2.color
 })
 
 const opponent = computed(() => {
   if (!gameState.value || !user.value) return null
-  
-  if (gameState.value.player1.id === user.value.id) {
-    return gameState.value.player2 
-  } else {
-    return gameState.value.player1
-  }
+  return gameState.value.player1.id === user.value.id 
+    ? gameState.value.player2 
+    : gameState.value.player1
 })
 
 const isMyTurn = computed(() => {
-  if (!gameState.value || !user.value) return false
-  
-  const currentTurn = gameState.value.currentTurn // 'white' or 'black'
-  const myColorValue = myColor.value // 'white' or 'black'
-  
-  // More detailed debug logs
-  console.log(`----- TURN DEBUG INFO -----`)
-  console.log(`User ID: ${user.value.id}`)
-  console.log(`Player1 ID: ${gameState.value.player1.id}, Color: ${gameState.value.player1.color}`)
-  console.log(`Player2 ID: ${gameState.value.player2.id}, Color: ${gameState.value.player2.color}`)
-  console.log(`Current turn: ${currentTurn}, My color: ${myColorValue}`)
-  console.log(`Is my turn: ${currentTurn === myColorValue}`)
-  console.log(`--------------------------`)
-  
-  return currentTurn === myColorValue
+  return gameState.value?.currentTurn === myColor.value
 })
 
 const userInitials = computed(() => {
@@ -269,35 +224,29 @@ const boardSquares = computed((): BoardSquare[] => {
     const rank = ranks[rankIndex]
     for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
       const file = files[fileIndex]
-      if (rank !== undefined && file !== undefined) {
-        const boardRank = 8 - rank
-        const boardFile = fileIndex
-        const piece = board[boardRank] ? board[boardRank][boardFile] : null
-        const squareName = `${file}${rank}`
-        
+      const boardRank = 8 - rank
+      const boardFile = fileIndex
+      const piece = board[boardRank] ? board[boardRank][boardFile] : null
+      const squareName = `${file}${rank}`
+      
       // Check if this square is a legal move
-        let isLegalMove = false
-        if (selectedSquare.value) {
-          const movesVerbose = game.value.moves({
-            square: selectedSquare.value as Square,
-            verbose: true
-          })
-          
-          // Handle the case where moves might be an array of strings or objects
-          if (movesVerbose.length > 0 && typeof movesVerbose[0] === 'object') {
-            isLegalMove = (movesVerbose as any[]).some(move => move.to === squareName)
-          }
-        }
-        
-        squares.push({
-          file,
-          rank,
-          piece,
-          isSelected: selectedSquare.value === squareName,
-          isLegalMove,
-          isLastMove: gameState.value?.lastMove === squareName
+      let isLegalMove = false
+      if (selectedSquare.value) {
+        const moves = game.value.moves({
+          square: selectedSquare.value as Square,
+          verbose: true
         })
+        isLegalMove = moves.some(move => move.to === squareName)
       }
+      
+      squares.push({
+        file,
+        rank,
+        piece,
+        isSelected: selectedSquare.value === squareName,
+        isLegalMove,
+        isLastMove: gameState.value?.lastMove === squareName
+      })
     }
   }
   
@@ -341,65 +290,33 @@ const loadGameState = async () => {
 }
 
 const makeMove = async (fromSquare: string, toSquare: string) => {
-  if (!isMyTurn.value || !user.value) {
-    console.log(`Cannot make move - isMyTurn: ${isMyTurn.value}, user: ${user.value?.id}`)
-    return
-  }
+  if (!isMyTurn.value || !user.value) return
   
   try {
-    // Prevent multiple move submissions
-    connectionStatus.value = 'Moving...'
+    const { $convex } = useNuxtApp()
     
-    console.log(`Making move from ${fromSquare} to ${toSquare}`)
-    console.log(`Current FEN before move: ${game.value.fen()}`)
-    
-    // Generate move object locally first to validate
+    // Generate move object
     const moveObj = game.value.move({
       from: fromSquare as Square,
       to: toSquare as Square,
       promotion: 'q' // Default to queen promotion
     })
     
-    if (!moveObj) {
-      console.error('Invalid move according to chess.js')
-      connectionStatus.value = 'Connected'
-      return
-    }
-    
-    console.log(`Local move validation passed: ${moveObj.san}`)
-    
-    const { $convex } = useNuxtApp()
+    if (!moveObj) return
     
     // Make the move in Convex
-    const result = await $convex.mutation(api.games.makeMove, {
+    await $convex.mutation(api.games.makeMove, {
       gameId: props.gameId,
       move: moveObj.san,
       playerId: user.value.id
     })
     
-    console.log('Move registered in Convex successfully', result)
-    
-    // Reset selection and update status
+    // No need to poll as we'll get updates via subscription
     selectedSquare.value = null
-    connectionStatus.value = 'Connected'
-    
-    // Wait for subscription to update the game state
   } catch (error) {
     console.error('Failed to make move:', error)
-    
-    // Show error status
-    connectionStatus.value = 'Error'
-    
-    // Revert the move locally
+    // Revert the move
     game.value.undo()
-    
-    // Reset selection
-    selectedSquare.value = null
-    
-    // Reset status after a delay
-    setTimeout(() => {
-      connectionStatus.value = 'Connected'
-    }, 2000)
   }
 }
 
@@ -417,16 +334,11 @@ const handleSquareClick = (square: BoardSquare) => {
     const to = squareName
     
     // Check if this is a valid move
-    const possibleMovesVerbose = game.value.moves({ 
+    const possibleMoves = game.value.moves({ 
       square: from as Square, 
       verbose: true 
     })
-    
-    // Handle the case where moves might be an array of strings or objects
-    let validMove = false
-    if (possibleMovesVerbose.length > 0 && typeof possibleMovesVerbose[0] === 'object') {
-      validMove = (possibleMovesVerbose as any[]).some(move => move.to === to)
-    }
+    const validMove = possibleMoves.find(move => move.to === to)
     
     if (validMove) {
       makeMove(from, to)
@@ -451,34 +363,10 @@ const getSquareColor = (file: string, rank: number) => {
 
 const getPieceSymbol = (type: PieceSymbol, color: 'w' | 'b') => {
   const pieces = {
-    w: { 
-      k: '♔', 
-      q: '♕', 
-      r: '♖', 
-      b: '♗', 
-      n: '♘', 
-      p: '♙' 
-    },
-    b: { 
-      k: '♚', 
-      q: '♛', 
-      r: '♜', 
-      b: '♝', 
-      n: '♞', 
-      p: '♟' 
-    }
+    w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
+    b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   }
-  
-  // Safer type checking before accessing
-  if (color === 'w' || color === 'b') {
-    const colorPieces = pieces[color]
-    if (type in colorPieces) {
-      return colorPieces[type as keyof typeof colorPieces]
-    }
-  }
-  
-  // Fallback
-  return ''
+  return pieces[color][type]
 }
 
 const formatGameTime = (seconds: number) => {
@@ -504,17 +392,6 @@ const setupSubscription = () => {
     (updatedGame) => {
       if (!updatedGame) return
       
-      console.log(`Received game update via subscription - Game ID: ${updatedGame.gameId}`)
-      console.log(`Current turn: ${updatedGame.currentTurn}, FEN: ${updatedGame.fen}`)
-      
-      // Check if there's an actual change before updating
-      if (gameState.value && 
-          gameState.value.fen === updatedGame.fen && 
-          gameState.value.lastMoveTime === updatedGame.lastMoveTime) {
-        console.log('No meaningful changes detected, skipping update')
-        return
-      }
-      
       connectionStatus.value = 'Connected'
       gameState.value = {
         id: updatedGame.gameId,
@@ -526,24 +403,13 @@ const setupSubscription = () => {
         player2: updatedGame.player2,
         status: updatedGame.status,
         winner: updatedGame.winner,
-        gameMode: updatedGame.gameMode || 'standard',
+        gameMode: updatedGame.gameMode,
         createdAt: updatedGame.createdAt,
-        moveHistory: updatedGame.moveHistory || []
+        moveHistory: updatedGame.moveHistory
       }
       
-      // Update chess.js instance with new FEN
-      try {
-        game.value = new Chess(updatedGame.fen)
-        
-        // Log debug information about the game state
-        console.log(`Updated game - My color: ${myColor.value}, Current turn: ${updatedGame.currentTurn}`)
-        console.log(`Is my turn now: ${updatedGame.currentTurn === myColor.value}`)
-        
-        // Reset selected square when game state changes
-        selectedSquare.value = null
-      } catch (error) {
-        console.error('Error updating chess.js instance:', error)
-      }
+      // Update chess.js instance
+      game.value = new Chess(updatedGame.fen)
     }
   )
 }
