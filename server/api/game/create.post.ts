@@ -16,16 +16,30 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
     const { gameId, player1, player2, gameMode } = body
-    
-    const { $convex } = event.context
+      const { $convex } = event.context
     
     // Create the game in Convex
-    await $convex.mutation('games:createGame', {
-      gameId,
-      player1,
-      player2,
-      gameMode
-    })
+    try {
+      // Try with new chess_games module first
+      await $convex.mutation('chess_games:createGame', {
+        gameId,
+        player1,
+        player2,
+        gameMode
+      });
+      console.log('[Server] Successfully created game with chess_games module');
+    } catch (chessGamesError) {
+      console.warn(`[Server] chess_games path failed, trying fallback:`, chessGamesError);
+      
+      // Fallback to old games module
+      await $convex.mutation('games:createGame', {
+        gameId,
+        player1,
+        player2,
+        gameMode
+      });
+      console.log('[Server] Successfully created game with games fallback');
+    }
     
     return { success: true, gameId }
   } catch (error) {

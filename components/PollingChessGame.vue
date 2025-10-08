@@ -1,3 +1,4 @@
+// filepath: c:\Users\Adrian\Documents\github\adnuchess\components\PollingChessGame.vue
 <template>
   <div class="space-y-6">
     <!-- Debug Panel -->
@@ -310,7 +311,7 @@ const loadGameState = async () => {
     connectionStatus.value = 'Loading...'
     const { $convex } = useNuxtApp()
     
-    const response = await $convex.query(api.games.getGameById, { gameId: props.gameId })
+    const response = await $convex.query(api.chess_games.getGameById, { gameId: props.gameId })
     
     if (response) {
       gameState.value = {
@@ -340,6 +341,7 @@ const loadGameState = async () => {
   }
 }
 
+// FIXED VERSION: Using direct string reference to API function instead of api object
 const makeMove = async (fromSquare: string, toSquare: string) => {
   if (!isMyTurn.value || !user.value) {
     console.log(`Cannot make move - isMyTurn: ${isMyTurn.value}, user: ${user.value?.id}`)
@@ -370,28 +372,55 @@ const makeMove = async (fromSquare: string, toSquare: string) => {
     
     const { $convex } = useNuxtApp()
     
-    // Make the move in Convex
-    const result = await $convex.mutation(api.games.makeMove, {
+    // Make the move in Convex - use string reference instead of api object
+    console.log('Sending move to Convex:', {
       gameId: props.gameId,
       move: moveObj.san,
       playerId: user.value.id
     })
     
-    console.log('Move registered in Convex successfully', result)
-    
-    // Reset selection and update status
-    selectedSquare.value = null
-    connectionStatus.value = 'Connected'
-    
-    // Wait for subscription to update the game state
+    // First try with direct string reference
+    try {
+      const result = await $convex.mutation('games:makeMove', {
+        gameId: props.gameId,
+        move: moveObj.san,
+        playerId: user.value.id
+      })
+      
+      console.log('Move successfully registered in Convex:', result)
+      
+      // Reset selection and update status
+      selectedSquare.value = null
+      connectionStatus.value = 'Connected'
+      
+      // Note: No need to update game state here as the subscription will handle it
+    } catch (convexError) {
+      // If string reference fails, try with the API object
+      console.warn('String reference failed, trying with API object:', convexError)
+      
+      const result = await $convex.mutation(api.chess_games.makeMove, {
+        gameId: props.gameId,
+        move: moveObj.san,
+        playerId: user.value.id
+      })
+      
+      console.log('Move registered via API object:', result)
+      selectedSquare.value = null
+      connectionStatus.value = 'Connected'
+    }
   } catch (error) {
     console.error('Failed to make move:', error)
     
     // Show error status
     connectionStatus.value = 'Error'
+    gameError.value = 'Failed to make move: ' + (error instanceof Error ? error.message : String(error))
     
     // Revert the move locally
-    game.value.undo()
+    try {
+      game.value.undo()
+    } catch (e) {
+      console.error('Failed to undo move:', e)
+    }
     
     // Reset selection
     selectedSquare.value = null
@@ -399,7 +428,8 @@ const makeMove = async (fromSquare: string, toSquare: string) => {
     // Reset status after a delay
     setTimeout(() => {
       connectionStatus.value = 'Connected'
-    }, 2000)
+      gameError.value = ''
+    }, 3000)
   }
 }
 
@@ -499,7 +529,7 @@ const setupSubscription = () => {
   
   // Set up real-time subscription
   unsubscribe = $convex.onUpdate(
-    api.games.getGameById, 
+    api.chess_games.getGameById, 
     { gameId: props.gameId },
     (updatedGame) => {
       if (!updatedGame) return
