@@ -64,8 +64,15 @@ export default defineEventHandler(async (event) => {
         // Found a match! Create game
         const gameId = randomUUID()
         
-        // Randomly assign colors
+        // Randomly assign colors - but be consistent with our Convex schema:
+        // player1 is always white, player2 is always black
         const isCurrentPlayerWhite = Math.random() > 0.5
+        
+        // Determine which player is player1 (white) and which is player2 (black)
+        const whitePlayerId = isCurrentPlayerWhite ? session.user.id : opponent.userId
+        const whitePlayerName = isCurrentPlayerWhite ? session.user.name : opponent.userName
+        const blackPlayerId = isCurrentPlayerWhite ? opponent.userId : session.user.id
+        const blackPlayerName = isCurrentPlayerWhite ? opponent.userName : session.user.name
         
         const gameState: GameState = {
           id: gameId,
@@ -74,13 +81,13 @@ export default defineEventHandler(async (event) => {
           lastMoveTime: Date.now(),
           currentTurn: 'white',
           player1: {
-            id: isCurrentPlayerWhite ? session.user.id : opponent.userId,
-            name: isCurrentPlayerWhite ? session.user.name : opponent.userName,
+            id: whitePlayerId,
+            name: whitePlayerName,
             color: 'white'
           },
           player2: {
-            id: isCurrentPlayerWhite ? opponent.userId : session.user.id,
-            name: isCurrentPlayerWhite ? opponent.userName : session.user.name,
+            id: blackPlayerId,
+            name: blackPlayerName,
             color: 'black'
           },
           status: 'active',
@@ -89,9 +96,26 @@ export default defineEventHandler(async (event) => {
           moveHistory: []
         }
         
-        // Save game
+        // Save game to local storage for backward compatibility
         const gameStorage = useStorage('chess-games')
         await gameStorage.setItem(`game:${gameId}`, gameState)
+        
+        // Save game to Convex
+        const { $convex } = event.context
+        await $convex.mutation('games:createGame', {
+          gameId,
+          player1: {
+            id: gameState.player1.id,
+            name: gameState.player1.name,
+            color: "white" // Explicitly set to white
+          },
+          player2: {
+            id: gameState.player2.id,
+            name: gameState.player2.name,
+            color: "black" // Explicitly set to black
+          },
+          gameMode: body.gameMode
+        })
         
         // Remove both players from queue
         await storage.removeItem(`queue:${session.user.id}`)

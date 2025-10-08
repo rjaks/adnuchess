@@ -1,5 +1,4 @@
 import { defineEventHandler, getRouterParam } from 'h3'
-import { useStorage } from '#imports'
 
 type GameState = {
   id: string
@@ -13,6 +12,7 @@ type GameState = {
   winner?: string
   gameMode: string
   createdAt: number
+  moveHistory: string[]
 }
 
 export default defineEventHandler(async (event) => {
@@ -26,14 +26,30 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const storage = useStorage('chess-games')
-    const gameState = await storage.getItem<GameState>(`game:${gameId}`)
+    const { $convex } = event.context
+    const game = await $convex.query('games:getGameById', { gameId })
     
-    if (!gameState) {
+    if (!game) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Game not found'
       })
+    }
+
+    // Format the response to match our expected GameState type
+    const gameState: GameState = {
+      id: game.gameId,
+      fen: game.fen,
+      lastMove: game.lastMove || null,
+      lastMoveTime: game.lastMoveTime,
+      currentTurn: game.currentTurn,
+      player1: game.player1,
+      player2: game.player2,
+      status: game.status,
+      winner: game.winner,
+      gameMode: game.gameMode,
+      createdAt: game.createdAt,
+      moveHistory: game.moveHistory
     }
 
     return gameState
