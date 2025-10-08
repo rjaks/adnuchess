@@ -34,8 +34,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const hostedDomain = (payload.hd || '').toLowerCase()
+  console.log('Debug auth - Email:', payload.email, 'Hosted Domain:', hostedDomain, 'Expected:', DOMAIN)
+  
   if (hostedDomain !== DOMAIN) {
-    throw createError({ statusCode: 403, statusMessage: 'Please sign in with your AdNU gbox email.' })
+    throw createError({ 
+      statusCode: 403, 
+      statusMessage: `Please sign in with your AdNU gbox email. Got domain: ${hostedDomain}, expected: ${DOMAIN}` 
+    })
   }
 
   const { user, isNew } = await upsertGoogleUser({
