@@ -73,6 +73,21 @@
             {{ item.label }}
           </NuxtLink>
 
+          <!-- Search Button -->
+          <button
+            v-if="isLoggedIn"
+            type="button"
+            class="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-white/70 hover:text-[#021d94]"
+            @click="openSearchModal"
+            aria-label="Search players"
+            title="Search players"
+          >
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+          </button>
+
           <div
             v-if="isLoggedIn"
             class="flex flex-col gap-2 md:flex-row md:items-center md:gap-2"
@@ -139,6 +154,20 @@
               {{ item.label }}
             </NuxtLink>
 
+            <!-- Mobile Search Button -->
+            <button
+              v-if="isLoggedIn"
+              type="button"
+              class="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-white/70 hover:text-[#021d94]"
+              @click="openSearchModal"
+            >
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              Search Players
+            </button>
+
             <div v-if="isLoggedIn" class="flex flex-col gap-3 pt-1">
               <NuxtLink
                 to="/account"
@@ -202,6 +231,9 @@
         </p>
       </div>
     </footer>
+
+    <!-- Player Search Modal -->
+    <PlayerSearchModal :is-open="isSearchModalOpen" @close="closeSearchModal" />
   </div>
 </template>
 
@@ -230,8 +262,19 @@ const navItems: readonly NavigationItem[] = [
 ] as const
 
 const isMenuOpen = ref(false)
+const isSearchModalOpen = ref(false)
+
 const closeMenu = () => {
   isMenuOpen.value = false
+}
+
+const openSearchModal = () => {
+  isSearchModalOpen.value = true
+  closeMenu() // Close mobile menu if open
+}
+
+const closeSearchModal = () => {
+  isSearchModalOpen.value = false
 }
 const route = useRoute()
 const currentPath = computed(() => route.path)
