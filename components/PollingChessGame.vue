@@ -111,9 +111,7 @@
             <p class="text-sm text-slate-600">Moves: {{ gameState?.moveHistory?.length || 0 }}</p>
           </div>
         </div>
-      </div>
-
-      <!-- Game Info -->
+      </div>      <!-- Game Info -->
       <div class="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-inner">
         <h3 class="text-lg font-semibold text-slate-900">Game Info</h3>
         <div class="mt-4 space-y-2 text-sm">
@@ -128,6 +126,67 @@
           <div class="flex justify-between">
             <span class="text-slate-600">Game Time</span>
             <span class="font-semibold">{{ formatGameTime(gameTime) }}</span>
+          </div>
+        </div>
+        
+        <!-- Game Controls -->
+        <div v-if="isGameInProgress" class="mt-6 flex justify-center gap-4">
+          <button
+            @click="confirmResign"
+            class="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition"
+          >
+            Resign
+          </button>
+          <button
+            @click="offerDraw"
+            class="rounded-lg bg-slate-500 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 transition"
+            :disabled="drawOffered && !drawOfferInbound"
+          >
+            {{ drawButtonText }}
+          </button>
+        </div>
+      </div>
+      
+      <!-- Draw offer modal -->
+      <div v-if="drawOfferInbound && isGameInProgress" class="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
+        <div class="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
+          <h3 class="text-lg font-bold text-slate-900">Draw Offer</h3>
+          <p class="mt-2 text-slate-600">Your opponent has offered a draw. Do you accept?</p>
+          <div class="mt-4 flex justify-end gap-3">
+            <button
+              @click="respondToDrawOffer(false)"
+              class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
+            >
+              Decline
+            </button>
+            <button
+              @click="respondToDrawOffer(true)"
+              class="rounded-lg bg-[#021d94] px-4 py-2 text-sm font-semibold text-white hover:bg-[#021d94]/90"
+            >
+              Accept
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resign confirmation modal -->
+      <div v-if="showResignConfirmation" class="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
+        <div class="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
+          <h3 class="text-lg font-bold text-slate-900">Confirm Resignation</h3>
+          <p class="mt-2 text-slate-600">Are you sure you want to resign this game? This action cannot be undone.</p>
+          <div class="mt-4 flex justify-end gap-3">
+            <button
+              @click="showResignConfirmation = false"
+              class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
+            >
+              Cancel
+            </button>
+            <button
+              @click="resignGame"
+              class="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+            >
+              Resign
+            </button>
           </div>
         </div>
       </div>
@@ -540,9 +599,27 @@ const setupSubscription = () => {
       // Check if there's an actual change before updating
       if (gameState.value && 
           gameState.value.fen === updatedGame.fen && 
-          gameState.value.lastMoveTime === updatedGame.lastMoveTime) {
+          gameState.value.lastMoveTime === updatedGame.lastMoveTime &&
+          !updatedGame.drawOffer) {
         console.log('No meaningful changes detected, skipping update')
         return
+      }
+      
+      // Check for draw offers
+      if (updatedGame.drawOffer && user.value) {
+        if (updatedGame.drawOffer.offeredTo === user.value.id) {
+          // Draw was offered to me
+          drawOfferInbound.value = true
+          console.log('Draw offer received')
+        } else if (updatedGame.drawOffer.offeredBy === user.value.id) {
+          // I offered a draw
+          drawOffered.value = true
+          console.log('Draw offer sent')
+        }
+      } else {
+        // No draw offer active
+        drawOfferInbound.value = false
+        drawOffered.value = false
       }
       
       connectionStatus.value = 'Connected'
@@ -578,6 +655,117 @@ const setupSubscription = () => {
   )
 }
 
+// Game control state
+const showResignConfirmation = ref(false)
+const drawOffered = ref(false)
+const drawOfferInbound = ref(false)
+const isGameInProgress = computed(() => {
+  return gameState.value?.status === 'active' || gameState.value?.status === 'waiting'
+})
+const drawButtonText = computed(() => {
+  if (drawOfferInbound.value) return 'Accept Draw'
+  return drawOffered.value ? 'Draw Offered' : 'Offer Draw'
+})
+
+// Game control methods
+const confirmResign = () => {
+  showResignConfirmation.value = true
+}
+
+const resignGame = async () => {
+  showResignConfirmation.value = false
+  
+  try {
+    const { $convex } = useNuxtApp()
+    
+    connectionStatus.value = 'Resigning game...'
+    
+    // Call the resign mutation with the updated function path
+    await $convex.mutation('chess_games_gameEnd:resignGame', {
+      gameId: props.gameId,
+      playerId: user.value?.id
+    })
+    
+    // The game state will be updated via subscription
+    connectionStatus.value = 'Game resigned'
+  } catch (error) {
+    console.error('Failed to resign game:', error)
+    gameError.value = 'Failed to resign: ' + (error instanceof Error ? error.message : String(error))
+    
+    // Show a user-friendly error message
+    alert('Could not resign the game. Please try again later.')
+    
+    // Reset connection status
+    connectionStatus.value = 'Connected'
+  }
+}
+
+const offerDraw = async () => {
+  if (drawOfferInbound.value) {
+    // Accept incoming draw offer
+    respondToDrawOffer(true)
+    return
+  }
+    try {
+    const { $convex } = useNuxtApp()
+    
+    connectionStatus.value = 'Offering draw...'
+    
+    // Call the offer draw mutation
+    await $convex.mutation('chess_games_gameEnd:offerDraw', {
+      gameId: props.gameId,
+      playerId: user.value?.id
+    })
+    
+    drawOffered.value = true
+    connectionStatus.value = 'Draw offered'
+  } catch (error) {
+    console.error('Failed to offer draw:', error)
+    gameError.value = 'Failed to offer draw: ' + (error instanceof Error ? error.message : String(error))
+    
+    // Show a user-friendly error message
+    alert('Could not offer a draw. Please try again later.')
+    
+    // Reset connection status
+    connectionStatus.value = 'Connected'
+  }
+}
+
+const respondToDrawOffer = async (accepted: boolean) => {
+  drawOfferInbound.value = false
+  
+  try {
+    const { $convex } = useNuxtApp()
+    
+    connectionStatus.value = accepted ? 'Accepting draw...' : 'Declining draw...';
+    
+    // Call the draw response mutation
+    await $convex.mutation('chess_games_gameEnd:respondToDrawOffer', {
+      gameId: props.gameId,
+      playerId: user.value?.id,
+      accepted
+    })
+    
+    if (accepted) {
+      connectionStatus.value = 'Draw accepted'
+    } else {
+      connectionStatus.value = 'Draw declined'
+    }
+  } catch (error) {
+    console.error('Failed to respond to draw offer:', error)
+    gameError.value = 'Failed to respond: ' + (error instanceof Error ? error.message : String(error))
+    
+    // Show a user-friendly error message
+    alert(`Could not ${accepted ? 'accept' : 'decline'} the draw offer. Please try again later.`)
+    
+    // Reset connection status
+    connectionStatus.value = 'Connected'
+    
+    // Re-enable the draw offer if it failed
+    drawOfferInbound.value = true
+  }
+}
+
 const cleanup = () => {
   if (unsubscribe) {
     unsubscribe()
@@ -597,5 +785,13 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   cleanup()
+})
+
+// Expose methods to parent components
+defineExpose({
+  confirmResign,
+  resignGame,
+  offerDraw,
+  isGameInProgress
 })
 </script>

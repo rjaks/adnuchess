@@ -17,7 +17,7 @@
         <div class="text-right">
           <p class="text-sm text-slate-600">Game ID: {{ matchId }}</p>
           <button
-            @click="$router.push('/matchmaking')"
+            @click="confirmLeaveGame"
             class="mt-2 rounded-lg border border-[#021d94]/30 bg-white/80 px-4 py-2 text-sm font-semibold text-[#021d94] hover:bg-white"
           >
             Back to Matchmaking
@@ -27,14 +27,73 @@
     </header>
 
     <!-- Live Chess Game -->
-    <PollingChessGame :game-id="matchId" />
+    <PollingChessGame ref="gameRef" :game-id="matchId" />
+    
+    <!-- Leave Game Confirmation Modal -->
+    <div v-if="showLeaveConfirmation" class="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
+      <div class="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
+        <h3 class="text-lg font-bold text-slate-900">Leave Game?</h3>
+        <p class="mt-2 text-slate-600">Leaving this game will count as a resignation. Are you sure?</p>
+        <div class="mt-4 flex justify-end gap-3">
+          <button
+            @click="showLeaveConfirmation = false"
+            class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
+          >
+            Cancel
+          </button>
+          <button
+            @click="leaveGame"
+            class="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+          >
+            Leave Game
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useRoute } from '#imports'
+import { useRoute, useRouter, useNuxtApp } from '#imports'
+import { ref } from 'vue'
+import { useAuth } from '~/composables/useAuth'
 import PollingChessGame from '~/components/PollingChessGame.vue'
 
 const route = useRoute()
+const router = useRouter()
 const matchId = route.params.id as string
+const gameRef = ref<InstanceType<typeof PollingChessGame> | null>(null)
+const showLeaveConfirmation = ref(false)
+const { user } = useAuth()
+
+const confirmLeaveGame = () => {
+  // Always show confirmation dialog when leaving a game
+  showLeaveConfirmation.value = true;
+}
+
+const leaveGame = () => {
+  showLeaveConfirmation.value = false;
+  
+  // Use the Convex API directly to resign
+  const { $convex } = useNuxtApp();
+  
+  try {
+    // Try to resign directly via Convex API
+    if (user.value?.id) {
+      $convex.mutation('chess_games_gameEnd:resignGame', {
+        gameId: matchId,
+        playerId: user.value.id
+      }).catch(err => {
+        console.error('Error when resigning:', err);
+      });
+    }
+  } catch (error) {
+    console.error('Failed to resign game:', error);
+  }
+  
+  // Navigate back to matchmaking regardless
+  setTimeout(() => {
+    router.push('/matchmaking');
+  }, 500);
+}
 </script>

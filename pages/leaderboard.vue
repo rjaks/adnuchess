@@ -129,6 +129,7 @@
                   <div v-if="type.value === 'student'" class="text-2xl">🎓</div>
                   <div v-else-if="type.value === 'faculty'" class="text-2xl">👨‍🏫</div>
                   <div v-else-if="type.value === 'staff'" class="text-2xl">👩‍💼</div>
+                  <div v-else-if="type.value === 'alumni'" class="text-2xl">👨‍🎓</div>
                   <div v-else class="text-2xl">👥</div>
                 </button>
               </div>
@@ -199,19 +200,22 @@
           <div class="flex items-center justify-center gap-1 mb-1">
             <p class="text-xs text-slate-500 uppercase tracking-wide">{{ player.department }}</p>
           </div>
-          <div class="flex items-center justify-center gap-1 mb-3">
-            <span 
-              :class="[
-                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-                player.userType === 'student' ? 'bg-blue-100 text-blue-800' :
-                player.userType === 'faculty' ? 'bg-purple-100 text-purple-800' :
-                'bg-emerald-100 text-emerald-800'
-              ]"
-            >
-              <span v-if="player.userType === 'student'">🎓</span>
-              <span v-else-if="player.userType === 'faculty'">👨‍🏫</span>
-              <span v-else>👩‍💼</span>
-              {{ player.userType === 'student' ? 'Student' : player.userType === 'faculty' ? 'Faculty' : 'Staff' }}
+          <div class="flex items-center justify-center gap-1 mb-3">              <span 
+                :class="[
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
+                  player.userType === 'student' ? 'bg-blue-100 text-blue-800' :
+                  player.userType === 'faculty' ? 'bg-purple-100 text-purple-800' :
+                  player.userType === 'alumni' ? 'bg-amber-100 text-amber-800' :
+                  'bg-emerald-100 text-emerald-800'
+                ]"
+              >
+                <span v-if="player.userType === 'student'">🎓</span>
+                <span v-else-if="player.userType === 'faculty'">👨‍🏫</span>
+                <span v-else-if="player.userType === 'alumni'">👨‍🎓</span>
+                <span v-else>👩‍💼</span>
+                {{ player.userType === 'student' ? 'Student' : 
+                   player.userType === 'faculty' ? 'Faculty' : 
+                   player.userType === 'alumni' ? 'Alumni' : 'Staff' }}
             </span>
             <span v-if="player.yearLevel && player.userType === 'student'" class="text-xs text-slate-400">
               • {{ player.yearLevel }}
@@ -288,13 +292,17 @@
                           'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium',
                           player.userType === 'student' ? 'bg-blue-100 text-blue-800' :
                           player.userType === 'faculty' ? 'bg-purple-100 text-purple-800' :
+                          player.userType === 'alumni' ? 'bg-amber-100 text-amber-800' :
                           'bg-emerald-100 text-emerald-800'
                         ]"
                       >
                         <span v-if="player.userType === 'student'">🎓</span>
                         <span v-else-if="player.userType === 'faculty'">👨‍🏫</span>
+                        <span v-else-if="player.userType === 'alumni'">👨‍🎓</span>
                         <span v-else>👩‍💼</span>
-                        {{ player.userType === 'student' ? 'Student' : player.userType === 'faculty' ? 'Faculty' : 'Staff' }}
+                        {{ player.userType === 'student' ? 'Student' : 
+                           player.userType === 'faculty' ? 'Faculty' : 
+                           player.userType === 'alumni' ? 'Alumni' : 'Staff' }}
                       </span>
                       <span v-if="player.yearLevel && player.userType === 'student'" class="text-xs text-slate-400">
                         {{ player.yearLevel }}
@@ -349,6 +357,23 @@
         </table>
       </div>
       
+      <!-- Loading State -->
+      <div class="text-center py-10" v-if="loading">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#021d94]"></div>
+        <p class="mt-2 text-sm text-slate-600">Loading leaderboard data...</p>
+      </div>
+
+      <!-- No Players Message -->
+      <div class="text-center py-10" v-if="!loading && filteredPlayers.length === 0">
+        <p class="text-lg text-slate-600">No players found matching your filters.</p>
+        <button 
+          @click="clearFilters"
+          class="mt-4 px-4 py-2 bg-[#021d94] text-white rounded-lg text-sm"
+        >
+          Clear Filters
+        </button>
+      </div>
+      
       <!-- Load More -->
       <div class="text-center mt-6" v-if="canLoadMore">
         <button 
@@ -372,7 +397,7 @@ interface LeaderboardPlayer {
   email: string
   picture?: string
   department: string
-  userType: 'student' | 'staff' | 'faculty'
+  userType: 'student' | 'staff' | 'faculty' | 'alumni'
   yearLevel?: string
   rating: number
   ratingChange: number
@@ -405,8 +430,8 @@ const selectedUserType = ref('all')
 const showFilters = ref(false)
 const players = ref<LeaderboardPlayer[]>([])
 const allPlayers = ref<LeaderboardPlayer[]>([])
-const loading = ref(false)
-const canLoadMore = ref(true)
+const loading = ref(true)
+const canLoadMore = ref(false) // Set to false since we're loading all at once
 
 // Constants
 const periods: Period[] = [
@@ -430,117 +455,11 @@ const userTypes: FilterOption[] = [
   { value: 'all', label: 'All Users' },
   { value: 'student', label: 'Students' },
   { value: 'staff', label: 'Staff' },
-  { value: 'faculty', label: 'Faculty' }
+  { value: 'faculty', label: 'Faculty' },
+  { value: 'alumni', label: 'Alumni' }
 ]
 
-// Mock data (replace with API call)
-const mockPlayers: LeaderboardPlayer[] = [
-  {
-    id: '1',
-    name: 'Maria Santos',
-    email: 'msantos@gbox.adnu.edu.ph',
-    picture: 'https://images.unsplash.com/photo-1494790108755-2616b612b0d9?w=100&h=100&fit=crop&crop=face',
-    department: 'College of Computer Studies',
-    userType: 'student',
-    yearLevel: '4th Year',
-    rating: 1847,
-    ratingChange: 23,
-    stats: { wins: 45, losses: 12, draws: 8 },
-    streak: 5,
-    lastActive: new Date().toISOString()
-  },
-  {
-    id: '2',
-    name: 'Prof. John Dela Cruz',
-    email: 'jdelacruz@gbox.adnu.edu.ph',
-    department: 'College of Science, Engineering, and Architecture',
-    userType: 'faculty',
-    rating: 1792,
-    ratingChange: -8,
-    stats: { wins: 38, losses: 15, draws: 12 },
-    streak: -2,
-    lastActive: new Date().toISOString()
-  },
-  {
-    id: '3',
-    name: 'Ana Reyes',
-    email: 'areyes@gbox.adnu.edu.ph',
-    picture: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
-    department: 'College of Business and Accountancy',
-    userType: 'student',
-    yearLevel: '3rd Year',
-    rating: 1756,
-    ratingChange: 15,
-    stats: { wins: 33, losses: 18, draws: 6 },
-    streak: 3,
-    lastActive: new Date().toISOString()
-  },
-  {
-    id: '4',
-    name: 'Miguel Torres',
-    email: 'mtorres@gbox.adnu.edu.ph',
-    department: 'College of Humanities and Social Sciences',
-    userType: 'student',
-    yearLevel: '2nd Year',
-    rating: 1698,
-    ratingChange: 0,
-    stats: { wins: 28, losses: 22, draws: 15 },
-    streak: 0,
-    lastActive: new Date().toISOString()
-  },
-  {
-    id: '5',
-    name: 'Ms. Sofia Mendez',
-    email: 'smendez@gbox.adnu.edu.ph',
-    picture: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face',
-    department: 'College of Education',
-    userType: 'staff',
-    rating: 1645,
-    ratingChange: 12,
-    stats: { wins: 25, losses: 20, draws: 10 },
-    streak: 1,
-    lastActive: new Date().toISOString()
-  },
-  {
-    id: '6',
-    name: 'Carlos Villanueva',
-    email: 'cvillanueva@gbox.adnu.edu.ph',
-    department: 'College of Business and Accountancy',
-    userType: 'student',
-    yearLevel: '1st Year',
-    rating: 1612,
-    ratingChange: -5,
-    stats: { wins: 22, losses: 25, draws: 8 },
-    streak: -1,
-    lastActive: new Date().toISOString()
-  },
-  {
-    id: '7',
-    name: 'Isabella Garcia',
-    email: 'igarcia@gbox.adnu.edu.ph',
-    picture: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop&crop=face',
-    department: 'College of Humanities and Social Sciences',
-    userType: 'student',
-    yearLevel: '4th Year',
-    rating: 1589,
-    ratingChange: 8,
-    stats: { wins: 19, losses: 23, draws: 12 },
-    streak: 2,
-    lastActive: new Date().toISOString()
-  },
-  {
-    id: '8',
-    name: 'Dr. Rafael Aquino',
-    email: 'raquino@gbox.adnu.edu.ph',
-    department: 'College of Law',
-    userType: 'faculty',
-    rating: 1534,
-    ratingChange: -12,
-    stats: { wins: 16, losses: 28, draws: 9 },
-    streak: -3,
-    lastActive: new Date().toISOString()
-  }
-]
+// Methods
 
 // Computed properties
 const filteredPlayers = computed(() => {
@@ -620,17 +539,9 @@ const loadLeaderboard = async () => {
     players.value = response.players
   } catch (error) {
     console.error('Failed to load leaderboard:', error)
-    // Fallback to mock data on error
-    await new Promise(resolve => setTimeout(resolve, 500))
-    const processedMockData = mockPlayers.map(player => ({
-      ...player,
-      totalMatches: player.stats.wins + player.stats.losses + player.stats.draws,
-      winRate: player.stats.wins + player.stats.losses > 0 
-        ? Math.round((player.stats.wins / (player.stats.wins + player.stats.losses)) * 100)
-        : 0
-    }))
-    allPlayers.value = processedMockData
-    players.value = processedMockData
+    // Fallback to empty data on error
+    allPlayers.value = []
+    players.value = []
   } finally {
     loading.value = false
   }

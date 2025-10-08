@@ -79,6 +79,18 @@ function handleGameMessage(peer: any, data: any) {
       handleChatMessage(peer, data)
       break
       
+    case 'resign':
+      handleResignation(peer, data)
+      break
+      
+    case 'offer_draw':
+      handleDrawOffer(peer, data)
+      break
+      
+    case 'draw_response':
+      handleDrawResponse(peer, data)
+      break
+      
     default:
       peer.send(JSON.stringify({
         type: 'error',
@@ -226,7 +238,21 @@ function getResultMessage(result: string): string {
   }
 }
 
-function getResultDescription(result: string): string {
+function getResultDescription(result: string, reason?: string): string {
+  if (reason === 'resignation') {
+    if (result === 'win') {
+      return 'Your opponent resigned the game.'
+    }
+    return 'You resigned the game.'
+  } else if (reason === 'draw_agreement') {
+    return 'Draw agreed by both players.'
+  } else if (reason === 'player_left') {
+    if (result === 'win') {
+      return 'Your opponent left the game.'
+    }
+    return 'You left the game.'
+  }
+
   switch (result) {
     case 'win':
       return 'Congratulations! Well played.'
@@ -234,5 +260,114 @@ function getResultDescription(result: string): string {
       return 'Better luck next time!'
     default:
       return 'The game ended in a draw.'
+  }
+}
+
+function handleResignation(peer: any, data: any) {
+  const player = playerConnections.get(peer.id)
+  if (!player) return
+
+  const gamePlayers = gameConnections.get(player.matchId)
+  if (!gamePlayers) return
+
+  const reason = data.reason || 'resignation'
+  
+  // Notify the resigning player
+  try {
+    peer.send(JSON.stringify({
+      type: 'game_ended',
+      result: 'You Lose',
+      message: getResultDescription('loss', reason),
+      playerResult: 'loss'
+    }))
+  } catch (error) {
+    console.error('Failed to send resignation confirmation:', error)
+  }
+
+  // Notify opponent about resignation
+  const opponent = gamePlayers.find(p => p.id !== peer.id)
+  if (opponent) {
+    try {
+      opponent.ws.send(JSON.stringify({
+        type: 'game_ended',
+        result: 'You Win!',
+        message: getResultDescription('win', reason),
+        playerResult: 'win'
+      }))
+    } catch (error) {
+      console.error('Failed to notify opponent of resignation:', error)
+    }
+  }
+
+  console.log(`Player in game ${player.matchId} resigned`)
+}
+
+function handleDrawOffer(peer: any, data: any) {
+  const player = playerConnections.get(peer.id)
+  if (!player) return
+
+  const gamePlayers = gameConnections.get(player.matchId)
+  if (!gamePlayers) return
+
+  // Send draw offer to opponent
+  const opponent = gamePlayers.find(p => p.id !== peer.id)
+  if (opponent) {
+    try {
+      opponent.ws.send(JSON.stringify({
+        type: 'draw_offered'
+      }))
+    } catch (error) {
+      console.error('Failed to send draw offer:', error)
+    }
+  }
+
+  console.log(`Player in game ${player.matchId} offered a draw`)
+}
+
+function handleDrawResponse(peer: any, data: any) {
+  const player = playerConnections.get(peer.id)
+  if (!player) return
+
+  const gamePlayers = gameConnections.get(player.matchId)
+  if (!gamePlayers) return
+
+  const opponent = gamePlayers.find(p => p.id !== peer.id)
+  
+  if (data.accepted) {
+    // Draw accepted - notify both players
+    try {
+      peer.send(JSON.stringify({
+        type: 'game_ended',
+        result: 'Draw',
+        message: getResultDescription('draw', 'draw_agreement'),
+        playerResult: 'draw'
+      }))
+      
+      if (opponent) {
+        opponent.ws.send(JSON.stringify({
+          type: 'game_ended',
+          result: 'Draw',
+          message: getResultDescription('draw', 'draw_agreement'),
+          playerResult: 'draw'
+        }))
+      }
+      
+      console.log(`Draw agreed in game ${player.matchId}`)
+    } catch (error) {
+      console.error('Failed to process draw agreement:', error)
+    }
+  } else {
+    // Draw declined - notify the offerer
+    if (opponent) {
+      try {
+        opponent.ws.send(JSON.stringify({
+          type: 'draw_declined'
+        }))
+      } catch (error) {
+        console.error('Failed to send draw decline notification:', error)
+      }
+    }
+    
+    console.log(`Draw declined in game ${player.matchId}`)
   }
 }

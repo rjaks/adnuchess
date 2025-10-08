@@ -6,6 +6,7 @@ export default defineSchema({
     userId: v.string(),
     email: v.string(),
     name: v.string(),
+    displayName: v.optional(v.string()),
     role: v.optional(
       v.union(v.literal("student"), v.literal("faculty"), v.literal("alumni"))
     ),
@@ -35,6 +36,12 @@ export default defineSchema({
     }),
     status: v.union(v.literal("waiting"), v.literal("active"), v.literal("finished")),
     winner: v.optional(v.string()),
+    endReason: v.optional(v.string()),
+    drawOffer: v.optional(v.object({
+      offeredBy: v.string(),
+      offeredTo: v.string(),
+      offeredAt: v.number()
+    })),
     gameMode: v.string(),
     createdAt: v.number(),
     moveHistory: v.array(v.string()),

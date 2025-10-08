@@ -65,6 +65,67 @@
         <p v-else class="text-sm text-slate-500">No moves yet</p>
       </div>
     </div>
+
+    <!-- Game control buttons -->
+    <div v-if="!gameOver" class="flex justify-center gap-4">
+      <button
+        @click="confirmResign"
+        class="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition"
+      >
+        Resign
+      </button>
+      <button
+        @click="offerDraw"
+        class="rounded-lg bg-slate-500 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 transition"
+        :disabled="drawOffered && !drawOfferInbound"
+      >
+        {{ drawButtonText }}
+      </button>
+    </div>
+
+    <!-- Draw offer modal -->
+    <div v-if="drawOfferInbound && !gameOver" class="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
+      <div class="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
+        <h3 class="text-lg font-bold text-slate-900">Draw Offer</h3>
+        <p class="mt-2 text-slate-600">Your opponent has offered a draw. Do you accept?</p>
+        <div class="mt-4 flex justify-end gap-3">
+          <button
+            @click="respondToDrawOffer(false)"
+            class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
+          >
+            Decline
+          </button>
+          <button
+            @click="respondToDrawOffer(true)"
+            class="rounded-lg bg-[#021d94] px-4 py-2 text-sm font-semibold text-white hover:bg-[#021d94]/90"
+          >
+            Accept
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resign confirmation modal -->
+    <div v-if="showResignConfirmation" class="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
+      <div class="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
+        <h3 class="text-lg font-bold text-slate-900">Confirm Resignation</h3>
+        <p class="mt-2 text-slate-600">Are you sure you want to resign this game? This action cannot be undone.</p>
+        <div class="mt-4 flex justify-end gap-3">
+          <button
+            @click="showResignConfirmation = false"
+            class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-300"
+          >
+            Cancel
+          </button>
+          <button
+            @click="resignGame"
+            class="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+          >
+            Resign
+          </button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -106,6 +167,15 @@ const gameOver = ref(false)
 const gameResult = ref('')
 const gameResultMessage = ref('')
 const localResult = ref<'win' | 'loss' | 'draw'>('draw')
+
+// Game control state
+const showResignConfirmation = ref(false)
+const drawOffered = ref(false)
+const drawOfferInbound = ref(false)
+const drawButtonText = computed(() => {
+  if (drawOfferInbound) return 'Accept Draw'
+  return drawOffered ? 'Draw Offered' : 'Offer Draw'
+})
 
 // WebSocket for real-time sync
 let ws: WebSocket | null = null
@@ -299,27 +369,133 @@ const handleWebSocketMessage = (data: any) => {
       gameResultMessage.value = data.message
       localResult.value = data.playerResult
       break
+      
+    case 'draw_offered':
+      // Opponent offered a draw
+      drawOfferInbound.value = true
+      break
+      
+    case 'draw_declined':
+      // Opponent declined our draw offer
+      drawOffered.value = false
+      break
+  }
+}
+
+// Game control functions
+const confirmResign = () => {
+  showResignConfirmation.value = true
+}
+
+const resignGame = () => {
+  showResignConfirmation.value = false
+  
+  // Notify server about resignation
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    try {
+      ws.send(JSON.stringify({
+        type: 'resign',
+        matchId: props.matchId
+      }))
+      
+      // Set game as resigned locally after sending the message
+      gameOver.value = true
+      gameResult.value = 'You Lose'
+      gameResultMessage.value = 'You resigned the game.'
+      localResult.value = 'loss'
+    } catch (error) {
+      console.error('Failed to resign game:', error)
+      // Show error alert
+      alert('Failed to resign the game. Please try again.')
+    }
+  } else {
+    console.error('WebSocket not connected, cannot resign')
+    alert('Connection issue. Please try again.')
+  }
+}
+
+const offerDraw = () => {
+  if (drawOfferInbound) {
+    // Accept incoming draw offer
+    respondToDrawOffer(true)
+    return
+  }
+  
+  // Send draw offer to opponent
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'offer_draw',
+      matchId: props.matchId
+    }))
+    drawOffered.value = true
+  }
+}
+
+const respondToDrawOffer = (accepted: boolean) => {
+  drawOfferInbound.value = false
+  
+  if (accepted) {
+    // Accept the draw
+    gameOver.value = true
+    gameResult.value = 'Draw'
+    gameResultMessage.value = 'Draw agreed by both players.'
+    localResult.value = 'draw'
+  }
+  
+  // Notify server about draw response
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'draw_response',
+      matchId: props.matchId,
+      accepted
+    }))
   }
 }
 
 const endGame = () => {
   gameOver.value = true
   
-  if (game.value.isCheckmate()) {
-    const winner = game.value.turn() === 'w' ? 'black' : 'white'
-    if (winner === props.playerColor) {
-      gameResult.value = 'You Win!'
-      gameResultMessage.value = 'Checkmate! Well played.'
-      localResult.value = 'win'
-    } else {
-      gameResult.value = 'You Lose'
-      gameResultMessage.value = 'Checkmate! Better luck next time.'
-      localResult.value = 'loss'
+  // Use the safer approach with try-catch to handle different chess.js versions
+  try {
+    // Check for checkmate
+    let isInCheckmate = false;
+    try {
+      // @ts-ignore - Different chess.js versions use different methods
+      isInCheckmate = game.value.in_checkmate?.() || game.value.isCheckmate?.();
+    } catch (e) {
+      console.error('Error checking checkmate:', e);
     }
-  } else if (game.value.isDraw()) {
-    gameResult.value = 'Draw'
-    gameResultMessage.value = 'The game ended in a draw.'
-    localResult.value = 'draw'
+    
+    // Check for draw
+    let isDrawn = false;
+    try {
+      // @ts-ignore - Different chess.js versions use different methods
+      isDrawn = game.value.in_draw?.() || game.value.isDraw?.();
+    } catch (e) {
+      console.error('Error checking draw:', e);
+    }
+    
+    if (isInCheckmate) {
+      const winner = game.value.turn() === 'w' ? 'black' : 'white'
+      if (winner === props.playerColor) {
+        gameResult.value = 'You Win!'
+        gameResultMessage.value = 'Checkmate! Well played.'
+        localResult.value = 'win'
+      } else {
+        gameResult.value = 'You Lose'
+        gameResultMessage.value = 'Checkmate! Better luck next time.'
+        localResult.value = 'loss'
+      }
+    } else if (isDrawn) {
+      gameResult.value = 'Draw'
+      gameResultMessage.value = 'The game ended in a draw.'
+      localResult.value = 'draw'
+    }
+  } catch (error) {
+    console.error('Error determining game result:', error);
+    gameResult.value = 'Game Over';
+    gameResultMessage.value = 'The game has ended.';
+    localResult.value = 'draw';
   }
   
   // Notify server about game end
@@ -337,6 +513,15 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  // If game is still in progress, send resignation before closing
+  if (!gameOver.value && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'resign',
+      matchId: props.matchId,
+      reason: 'player_left'
+    }))
+  }
+  
   if (ws) {
     ws.close()
   }

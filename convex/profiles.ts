@@ -89,3 +89,36 @@ export const seedTestProfiles = mutation({
     }
   },
 });
+
+export const updateDisplayName = mutation({
+  args: {
+    userId: v.string(),
+    displayName: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, { userId, displayName }) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!profile) throw new Error("Profile not found");
+
+    // If displayName is null or empty string, remove the displayName field
+    const updateData = {
+      displayName: displayName && displayName.trim() !== "" ? displayName.trim() : undefined,
+      updatedAt: Date.now(),
+    };
+
+    await ctx.db.patch(profile._id, updateData);
+    return { success: true };
+  },
+});
+
+export const getAllProfiles = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get all profiles and sort by ELO rating in descending order
+    const profiles = await ctx.db.query("profiles").collect();
+    return profiles.sort((a, b) => b.elo - a.elo);
+  },
+});

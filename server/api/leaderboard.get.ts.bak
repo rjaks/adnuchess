@@ -44,31 +44,8 @@ export default defineEventHandler(async (event) => {
     const players: LeaderboardPlayer[] = []
     
     for (const profile of profiles) {
-      // For display, use displayName if available
-      const displayName = profile.displayName || profile.name
-      
       // Calculate streak and other stats from matches (if available)
-      const playerMatches = matches.filter(m => 
-        (m.meta?.whitePlayerId === profile.userId || m.meta?.blackPlayerId === profile.userId) &&
-        m.completedAt
-      )
-      
-      // Initialize wins, losses, draws from match history
-      let wins = 0
-      let losses = 0
-      let draws = 0
-      
-      // Calculate actual stats from match history
-      playerMatches.forEach(match => {
-        const isWhitePlayer = match.meta?.whitePlayerId === profile.userId
-        const isBlackPlayer = match.meta?.blackPlayerId === profile.userId
-        
-        if (match.result === 'white' && isWhitePlayer) wins++
-        else if (match.result === 'black' && isBlackPlayer) wins++
-        else if ((match.result === 'white' && isBlackPlayer) || 
-                 (match.result === 'black' && isWhitePlayer)) losses++
-        else if (match.result === 'draw') draws++
-      })
+      const playerMatches = matches.filter(m => m.meta?.playerId === profile.userId)
       
       // Calculate streak (consecutive wins/losses)
       let streak = 0
@@ -95,6 +72,10 @@ export default defineEventHandler(async (event) => {
         }
       }
 
+      // For now, use a placeholder for rating change
+      // In a real app, you would track previous ratings
+      const ratingChange = 0
+
       // Get department from email pattern or use placeholder
       const departments = [
         'College of Humanities and Social Sciences',
@@ -105,63 +86,42 @@ export default defineEventHandler(async (event) => {
         'College of Nursing',
         'College of Law'
       ]
-      // For now, just use email domain to determine department
-      const emailDomain = profile.email.split('@')[1] || ''
-      let department = departments[0]
-      
-      if (emailDomain.includes('ccs')) {
-        department = departments[2] // Computer Studies
-      } else if (emailDomain.includes('cba')) {
-        department = departments[1] // Business
-      } else {
-        // Assign a random department for demo purposes
-        department = departments[Math.floor(Math.random() * departments.length)]
-      }
+      const department = departments[Math.floor(Math.random() * departments.length)]
 
-      // Use role from profile or default to student
-      let userType: 'student' | 'staff' | 'faculty' | 'alumni' = 'student'
+      // Determine user type based on email patterns or random for demo
+      let userType: 'student' | 'staff' | 'faculty' = 'student'
       let yearLevel: string | undefined = undefined
       
-      if (profile.role) {
-        userType = profile.role as any // Convert to the expected type
+      if (user.name.toLowerCase().includes('prof') || user.name.toLowerCase().includes('dr.')) {
+        userType = 'faculty'
+      } else if (user.name.toLowerCase().includes('ms.') || user.name.toLowerCase().includes('mr.')) {
+        userType = 'staff'
       } else {
-        // Guess from name patterns
-        if (profile.name.toLowerCase().includes('prof') || profile.name.toLowerCase().includes('dr.')) {
-          userType = 'faculty'
-        } else if (profile.name.toLowerCase().includes('ms.') || profile.name.toLowerCase().includes('mr.')) {
-          userType = 'staff'
-        } else {
-          userType = 'student'
-          const yearLevels = ['1st Year', '2nd Year', '3rd Year', '4th Year']
-          yearLevel = yearLevels[Math.floor(Math.random() * yearLevels.length)]
-        }
+        userType = 'student'
+        const yearLevels = ['1st Year', '2nd Year', '3rd Year', '4th Year']
+        yearLevel = yearLevels[Math.floor(Math.random() * yearLevels.length)]
       }
 
-      // If no real match data yet, use placeholder data only for demo users
-      if (playerMatches.length === 0 && profile.userId.startsWith('u_demo')) {
-        wins = Math.floor(Math.random() * 30)
-        losses = Math.floor(Math.random() * 20)
-        draws = Math.floor(Math.random() * 10)
-      }
-      
-      const totalMatches = wins + losses + draws
+      const totalMatches = user.stats.wins + user.stats.losses + user.stats.draws
       const winRate = totalMatches > 0 
-        ? Math.round((wins / totalMatches) * 100) || 0 // Include draws in total for percentage calculation
+        ? Math.round((user.stats.wins / (user.stats.wins + user.stats.losses)) * 100) || 0
         : 0
 
       players.push({
-        id: profile.userId,
-        name: displayName,
-        email: profile.email,
-        picture: profile.picture,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        picture: user.picture,
         department,
         userType,
         yearLevel,
-        rating: profile.elo, // Use actual ELO from Convex profile
-        ratingChange: Math.floor(Math.random() * 40) - 20, // Mock data
-        stats: { wins, losses, draws },
+        rating: Math.max(800, Math.min(2400, rating)), // Clamp rating between 800-2400
+        ratingChange,
+        stats: user.stats,
         streak,
-        lastActive: new Date(profile.updatedAt).toISOString(),
+        lastActive: playerMatches.length > 0 
+          ? playerMatches[0].completedAt 
+          : user.updatedAt,
         totalMatches,
         winRate
       })
