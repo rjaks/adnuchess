@@ -50,9 +50,9 @@
               type="button"
               class="flex-1 rounded-full bg-gradient-to-r from-[#021d94] to-[#ffaa00] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
               @click="joinQueue"
-              :disabled="connecting"
+              :disabled="isSearching"
             >
-              <span v-if="connecting">Finding Match...</span>
+              <span v-if="isSearching">Finding Match...</span>
               <span v-else>Find Match (Demo)</span>
             </button>
             <button
@@ -288,13 +288,15 @@ const joinQueue = async () => {
     })
     
     if (response.success) {
-      if (response.matchFound) {
+      if ('matchFound' in response && response.matchFound) {
         // Match found immediately!
         isSearching.value = false
         statusMessage.value = 'Match found! Starting game...'
         
         setTimeout(() => {
-          navigateTo(`/game/${response.gameId}`)
+          if ('gameId' in response && response.gameId) {
+            navigateTo(`/game/${response.gameId}`)
+          }
         }, 1000)
       } else {
         // Added to queue, start polling
@@ -311,20 +313,28 @@ const joinQueue = async () => {
   }
 }
 
+type MatchmakingStatusResponse = {
+  inQueue: boolean
+  matchFound: boolean
+  gameId?: string
+}
+
 const startQueuePolling = () => {
   // Poll every 2 seconds to check for matches
   queuePolling = setInterval(async () => {
     try {
-      const response = await $fetch('/api/matchmaking/status')
+      const response = await $fetch<MatchmakingStatusResponse>('/api/matchmaking/status')
       
-      if (response.matchFound) {
+      if ('matchFound' in response && response.matchFound) {
         // Match found!
         stopQueuePolling()
         inQueue.value = false
         statusMessage.value = 'Match found! Starting game...'
         
         setTimeout(() => {
-          navigateTo(`/game/${response.gameId}`)
+          if (response.gameId) {
+            navigateTo(`/game/${response.gameId}`)
+          }
         }, 1000)
       } else if (!response.inQueue) {
         // Player was removed from queue (shouldn't happen but handle gracefully)

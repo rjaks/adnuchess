@@ -1,4 +1,4 @@
-import { defineEventHandler, getRouterParam } from 'h3'
+import { defineEventHandler, getRouterParam, createError } from 'h3'
 
 type GameState = {
   id: string
@@ -34,6 +34,27 @@ export default defineEventHandler(async (event) => {
         statusCode: 404,
         statusMessage: 'Game not found'
       })
+    }
+
+    // Check if game has expired (30 minutes)
+    const now = Date.now()
+    const thirtyMinutes = 30 * 60 * 1000
+    const gameAge = now - game.createdAt
+    
+    if (game.status === 'active' && gameAge > thirtyMinutes) {
+      // Game has expired, mark it as finished
+      await $convex.mutation('games:updateGameStatus', {
+        gameId: game.gameId,
+        status: 'finished',
+        winner: 'expired'
+      })
+      
+      // Return the updated game state
+      const updatedGame = await $convex.query('games:getGameById', { gameId })
+      if (updatedGame) {
+        game.status = updatedGame.status
+        game.winner = updatedGame.winner
+      }
     }
 
     // Format the response to match our expected GameState type

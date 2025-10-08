@@ -259,6 +259,7 @@ const navItems: readonly NavigationItem[] = [
   { label: 'Settings', to: '/settings' },
   { label: 'FAQ', to: '/faq' },
   { label: 'Modes', to: '/modes' },
+  { label: 'Admin', to: '/admin' },
 ] as const
 
 const isMenuOpen = ref(false)

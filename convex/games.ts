@@ -100,6 +100,74 @@ export const createGame = mutation({
   },
 });
 
+export const getAllGames = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("games").collect();
+  },
+});
+
+export const cleanupExpiredGames = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const thirtyMinutes = 30 * 60 * 1000; // 30 minutes in milliseconds
+    
+    // Get all active games
+    const activeGames = await ctx.db
+      .query("games")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+    
+    let cleanedCount = 0;
+    
+    for (const game of activeGames) {
+      const gameAge = now - game.createdAt;
+      
+      if (gameAge > thirtyMinutes) {
+        // Mark expired games as finished
+        await ctx.db.patch(game._id, {
+          status: "finished",
+          winner: "expired",
+          endReason: "30_minute_timeout"
+        });
+        cleanedCount++;
+        console.log(`Expired game ${game.gameId} after ${Math.round(gameAge / 1000 / 60)} minutes`);
+      }
+    }
+    
+    return {
+      cleanedGames: cleanedCount,
+      message: `Cleaned up ${cleanedCount} expired games`
+    };
+  },
+});
+
+export const updateGameStatus = mutation({
+  args: {
+    gameId: v.string(),
+    status: v.union(v.literal("waiting"), v.literal("active"), v.literal("finished")),
+    winner: v.optional(v.string())
+  },
+  handler: async (ctx, { gameId, status, winner }) => {
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+      .first();
+    
+    if (!game) {
+      throw new Error(`Game not found: ${gameId}`);
+    }
+    
+    const patch: Record<string, any> = { status };
+    if (winner !== undefined) {
+      patch.winner = winner;
+    }
+    
+    return await ctx.db.patch(game._id, patch);
+  },
+});
+
 export const makeMove = mutation({
   args: {
     gameId: v.string(),
@@ -191,12 +259,8 @@ export const makeMove = mutation({
       // Check if the king is in check to determine checkmate vs stalemate
       let inCheck = false;
       try {
-        // Try different chess.js version methods
-        if (typeof chess.in_check === 'function') {
-          inCheck = chess.in_check();
-        } else if (chess.isCheck) {
-          inCheck = chess.isCheck();
-        }
+        // Use the correct chess.js method for checking if king is in check
+        inCheck = chess.in_check();
       } catch (error) {
         console.error("[Convex] Error checking if king is in check:", error);
       }

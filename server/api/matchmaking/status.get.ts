@@ -43,12 +43,22 @@ export default defineEventHandler(async (event) => {
     // First check if player has an active game in Convex
     const { $convex } = event.context
     try {
+      // Clean up expired games first
+      await $convex.mutation('games:cleanupExpiredGames')
+      
       const activeGames = await $convex.query('games:getGamesByPlayerId', { 
         playerId: session.user.id 
       })
       
-      // Find first active game
-      const activeGame = activeGames.find((game: any) => game.status === 'active')
+      // Find first active game (expired games should now be marked as finished)
+      const activeGame = activeGames.find((game: any) => {
+        const now = Date.now()
+        const thirtyMinutes = 30 * 60 * 1000 // 30 minutes
+        const gameAge = now - game.createdAt
+        
+        // Double check: only consider games that are active AND not older than 30 minutes
+        return game.status === 'active' && gameAge < thirtyMinutes
+      })
       
       if (activeGame) {
         return {
