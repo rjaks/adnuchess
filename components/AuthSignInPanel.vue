@@ -68,7 +68,9 @@ const { user, loginWithCredential } = useAuth()
 const buttonEl = ref<HTMLDivElement | null>(null)
 
 const status = ref<{ message: string | null; type: 'info' | 'error' | 'success' }>({
-  message: clientId ? 'Loading secure Google sign-in...' : 'Google client ID is missing in configuration.',
+  message: clientId 
+    ? 'Loading secure Google sign-in...' 
+    : 'Google Client ID is missing. Please check your environment configuration.',
   type: clientId ? 'info' : 'error',
 })
 
@@ -102,8 +104,14 @@ const ensureScript = () => {
     script.async = true
     script.defer = true
     script.id = 'google-identity-script'
-    script.onload = () => resolve()
-    script.onerror = () => reject(new Error('Failed to load Google Identity script.'))
+    script.onload = () => {
+      console.log('Google Identity script loaded successfully')
+      resolve()
+    }
+    script.onerror = () => {
+      console.error('Failed to load Google Identity script')
+      reject(new Error('Failed to load Google Identity script.'))
+    }
     document.head.appendChild(script)
   })
 }
@@ -124,7 +132,16 @@ const handleGoogleCredential = async ({ credential }: GoogleIdentityCredential) 
         : 'Signed in successfully! Redirecting...',
       type: 'success',
     }
-    await navigateTo(destination)
+    
+    // Add a small delay to ensure the auth state is properly set
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Force a page reload to ensure proper auth state initialization
+    if (process.client) {
+      window.location.href = destination
+    } else {
+      await navigateTo(destination)
+    }
   } catch (error: any) {
     console.error('Google login failed', error)
     status.value = {
@@ -135,22 +152,34 @@ const handleGoogleCredential = async ({ credential }: GoogleIdentityCredential) 
 }
 
 const initGoogle = async () => {
+  console.log('initGoogle called with clientId:', clientId)
+  
   if (!clientId) {
     status.value = {
-      message: 'Missing Google client ID. Update GOOGLE_CLIENT_ID env and restart.',
+      message: 'Missing Google client ID. Create a .env.local file with GOOGLE_CLIENT_ID=your_client_id',
       type: 'error',
     }
     return
   }
 
   try {
+    status.value = { message: 'Loading Google Sign-In...', type: 'info' }
+    console.log('Loading Google script...')
     await ensureScript()
+    
+    status.value = { message: 'Initializing Google Authentication...', type: 'info' }
+    console.log('Initializing Google Identity...')
+    
     const googleIdentity = window.google as unknown as GoogleIdentity
     googleIdentity.accounts.id.initialize({
       client_id: clientId,
       hosted_domain: 'gbox.adnu.edu.ph',
       callback: handleGoogleCredential,
     })
+    
+    status.value = { message: 'Rendering sign-in button...', type: 'info' }
+    console.log('Rendering button on element:', buttonEl.value)
+    
     if (buttonEl.value) {
       googleIdentity.accounts.id.renderButton(buttonEl.value, {
         type: 'standard',
@@ -161,21 +190,30 @@ const initGoogle = async () => {
         logo_alignment: 'center',
       })
     }
+    
+    console.log('Calling prompt...')
     googleIdentity.accounts.id.prompt()
-    if (!status.value.message?.startsWith('Welcome')) {
-      status.value = { message: 'Awaiting Google authentication...', type: 'info' }
-    }
+    status.value = { message: 'Ready for authentication. Click the button above to sign in.', type: 'info' }
+    console.log('Google Sign-In initialization complete')
   } catch (error) {
-    console.error(error)
-    status.value = { message: 'Unable to load Google sign-in at the moment.', type: 'error' }
+    console.error('Google Sign-In initialization error:', error)
+    status.value = { 
+      message: `Failed to initialize Google Sign-In: ${error instanceof Error ? error.message : 'Unknown error'}`, 
+      type: 'error' 
+    }
   }
 }
 
 onMounted(async () => {
+  console.log('AuthSignInPanel mounted, user:', user.value, 'clientId:', clientId)
+  
   if (user.value) {
+    console.log('User already authenticated, redirecting to:', props.redirectTo)
     await navigateTo(props.redirectTo)
     return
   }
+  
+  console.log('Starting Google initialization...')
   await initGoogle()
 })
 </script>

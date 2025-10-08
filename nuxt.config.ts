@@ -13,8 +13,7 @@ export default defineNuxtConfig({
     sessionTtlDays,
     public: {
       googleClientId: publicGoogleClientId,
-      // 👇 add this line
-      convexUrl: process.env.NUXT_PUBLIC_CONVEX_URL || '',
+      convexUrl: process.env.NUXT_PUBLIC_CONVEX_URL || 'https://exciting-mink-747.convex.cloud',
     },
   },
   nitro: {

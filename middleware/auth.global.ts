@@ -28,7 +28,8 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     }
 
     // Only redirect from public paths if user IS authenticated
-    if (auth.user.value && publicPaths.includes(to.path)) {
+    // Skip this redirect if we're coming from a login flow (to avoid redirect loops)
+    if (auth.user.value && publicPaths.includes(to.path) && from.path !== '/login') {
       return navigateTo('/')
     }
   }
