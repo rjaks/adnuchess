@@ -346,57 +346,27 @@
     </section>
   </section>
 
-  <!-- Photo Upload Modal -->
-  <div v-if="showPhotoUploadModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="photo-modal-title" role="dialog" aria-modal="true">
-    <div class="flex min-h-screen items-center justify-center px-4 py-6 text-center sm:block sm:p-0">
-      <!-- Background overlay -->
-      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" @click="showPhotoUploadModal = false"></div>
-
-      <!-- Modal panel -->
-      <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-middle shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-          <div class="sm:flex sm:items-start">
-            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#021d94]/10 sm:mx-0 sm:h-10 sm:w-10">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#021d94]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-              <h3 class="text-lg font-medium leading-6 text-gray-900" id="photo-modal-title">Upload Profile Photo</h3>
-              <div class="mt-2">
-                <p class="text-sm text-gray-500">
-                  Choose a profile photo to personalize your account. Recommended size: 200x200 pixels.
-                </p>
-              </div>
-              
-              <div class="mt-4">
-                <label for="photo-upload" class="block text-sm font-medium text-gray-700">Choose Photo</label>
-                <div class="mt-1">
-                  <input
-                    type="file"
-                    id="photo-upload"
-                    ref="photoInput"
-                    accept="image/*"
-                    @change="handlePhotoSelect"
-                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#021d94]/10 file:text-[#021d94] hover:file:bg-[#021d94]/20"
-                  />
-                </div>
-                
-                <!-- Preview -->
-                <div v-if="photoPreview" class="mt-4 flex justify-center">
-                  <div class="relative">
-                    <img :src="photoPreview" alt="Photo preview" class="h-20 w-20 rounded-full object-cover border-2 border-[#021d94]/20" />
-                    <button
-                      @click="clearPhotoPreview"
-                      class="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
+    <!-- Profile Settings Section -->
+    <!-- <section class="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-inner">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">Profile Settings</h2>
+          <p class="text-sm text-slate-500">Customize how you appear to other players.</p>
+        </div>
+        <button 
+          @click="showDisplayNameModal = true" 
+          class="inline-flex items-center rounded-md border border-transparent bg-[#021d94] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#021d94]/90 focus:outline-none focus:ring-2 focus:ring-[#021d94] focus:ring-offset-2"
+        >
+          Edit Display Name
+        </button>
+      </div>
+      
+      <div class="mt-5 space-y-4">
+        <div class="rounded-lg bg-white p-4 shadow-sm border border-[#021d94]/10">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="font-medium text-slate-900">Display Name</h3>
+              <p class="text-sm text-slate-500">Shown to other players during matches</p>
             </div>
           </div>
         </div>
@@ -426,8 +396,8 @@
           </p>
         </div>
       </div>
-    </div>
-  </div>
+    </section> -->
+  </section>
 
   <!-- Display Name Edit Modal -->
   <div v-if="showDisplayNameModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
