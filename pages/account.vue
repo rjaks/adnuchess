@@ -122,7 +122,7 @@
     </section>
 
     <!-- Profile Settings Section -->
-    <section class="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-inner">
+    <!-- <section class="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-inner">
       <div class="flex justify-between items-center">
         <div>
           <h2 class="text-lg font-semibold text-slate-900">Profile Settings</h2>
@@ -149,7 +149,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </section> -->
   </section>
 
   <!-- Display Name Edit Modal -->
