@@ -271,9 +271,8 @@ const getUserTypeLabel = (userType?: string) => {
 }
 
 const viewProfile = (playerId: string) => {
-  // For now, we'll just close the modal
-  // In a real app, you might navigate to a profile page
-  console.log('View profile for player:', playerId)
+  // Navigate to the player's profile page
+  navigateTo(`/profile/${playerId}`)
   closeModal()
 }
 
