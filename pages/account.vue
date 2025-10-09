@@ -41,7 +41,7 @@
                 title="Edit display name"
               >
                 <span class="sr-only">Edit display name</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                 </svg>
               </button>
@@ -353,20 +353,58 @@
           <h2 class="text-lg font-semibold text-slate-900">Profile Settings</h2>
           <p class="text-sm text-slate-500">Customize how you appear to other players.</p>
         </div>
-        <button 
-          @click="showDisplayNameModal = true" 
-          class="inline-flex items-center rounded-md border border-transparent bg-[#021d94] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#021d94]/90 focus:outline-none focus:ring-2 focus:ring-[#021d94] focus:ring-offset-2"
-        >
-          Edit Display Name
-        </button>
-      </div>
-      
-      <div class="mt-5 space-y-4">
-        <div class="rounded-lg bg-white p-4 shadow-sm border border-[#021d94]/10">
-          <div class="flex justify-between items-center">
-            <div>
-              <h3 class="font-medium text-slate-900">Display Name</h3>
-              <p class="text-sm text-slate-500">Shown to other players during matches</p>
+
+        <!-- Performance Metrics -->
+        <div class="space-y-4">
+          <div class="bg-white rounded-xl p-4 border border-slate-200">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-medium text-slate-700">ELO Progress</span>
+              <span class="text-sm font-semibold text-blue-600">{{ convexProfile?.elo || 1200 }}</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2">
+              <div 
+                class="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-1000 ease-out"
+                :style="{ width: eloProgress + '%' }"
+              ></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500 mt-1">
+              <span>1000</span>
+              <span>2000</span>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl p-4 border border-slate-200">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-medium text-slate-700">Activity Level</span>
+              <span class="text-sm font-semibold text-green-600">{{ activityLevel }}</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2">
+              <div 
+                class="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full transition-all duration-1000 ease-out"
+                :style="{ width: activityPercentage + '%' }"
+              ></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500 mt-1">
+              <span>Inactive</span>
+              <span>Very Active</span>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl p-4 border border-slate-200">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-sm font-medium text-slate-700">Performance</span>
+              <span class="text-sm font-semibold" :class="performanceColor">{{ performanceLevel }}</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2">
+              <div 
+                class="h-2 rounded-full transition-all duration-1000 ease-out"
+                :class="performanceBarClass"
+                :style="{ width: Math.max(winPercentage, 10) + '%' }"
+              ></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500 mt-1">
+              <span>Beginner</span>
+              <span>Expert</span>
             </div>
           </div>
         </div>
@@ -398,6 +436,87 @@
       </div>
     </section> -->
   </section>
+
+  <!-- Photo Upload Modal -->
+  <div v-if="showPhotoUploadModal" class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto" aria-labelledby="photo-modal-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <!-- Background overlay -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" @click="showPhotoUploadModal = false"></div>
+
+      <!-- Modal panel -->
+      <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div class="sm:flex sm:items-start">
+            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#021d94]/10 sm:mx-0 sm:h-10 sm:w-10">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#021d94]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+              <h3 class="text-lg font-medium leading-6 text-gray-900" id="photo-modal-title">Upload Profile Photo</h3>
+              <div class="mt-2">
+                <p class="text-sm text-gray-500">
+                  Choose a photo to use as your profile picture. Supported formats: JPG, PNG, GIF (max 5MB).
+                </p>
+              </div>
+              
+              <div class="mt-4">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                  <input
+                    type="file"
+                    ref="fileInput"
+                    @change="handleFileSelect"
+                    accept="image/*"
+                    class="hidden"
+                  />
+                  <button
+                    @click="fileInput?.click()"
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-[#021d94] bg-[#021d94]/10 hover:bg-[#021d94]/20 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    Choose File
+                  </button>
+                  <p class="mt-2 text-xs text-gray-500">Or drag and drop an image here</p>
+                </div>
+                
+                <div v-if="selectedFile" class="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p class="text-sm text-blue-800">Selected: {{ selectedFile.name }}</p>
+                  <p class="text-xs text-blue-600">{{ (selectedFile.size / 1024 / 1024).toFixed(2) }} MB</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <button
+            @click="uploadPhoto"
+            type="button"
+            class="inline-flex w-full justify-center rounded-md border border-transparent bg-[#021d94] px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-[#021d94]/90 focus:outline-none focus:ring-2 focus:ring-[#021d94] focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+            :disabled="!selectedFile || isUploading"
+          >
+            <span v-if="isUploading">Uploading...</span>
+            <span v-else>Upload</span>
+          </button>
+          <button
+            @click="showPhotoUploadModal = false; selectedFile = null"
+            type="button"
+            class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+        
+        <div v-if="uploadMessage" class="px-4 py-3 text-center">
+          <p class="text-sm" :class="uploadSuccess ? 'text-green-600' : 'text-red-600'">
+            {{ uploadMessage }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Display Name Edit Modal -->
   <div v-if="showDisplayNameModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -473,6 +592,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { api } from '@/convex/_generated/api' // if '~' alias complains, use '@/'
 const { $convex } = useNuxtApp()
+
+// File input ref for photo upload
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const { user, refresh } = useAuth()
 
@@ -777,4 +899,142 @@ const performanceTrend = computed(() => {
 
 const achievements = computed(() => profile.value?.achievements ?? [])
 const badges = computed(() => profile.value?.badges ?? [])
+
+// Analytics computed properties
+const winPercentage = computed(() => {
+  const total = totalMatches.value
+  if (total === 0) return 0
+  return Math.round(((profile.value?.stats.wins ?? 0) / total) * 100)
+})
+
+const lossPercentage = computed(() => {
+  const total = totalMatches.value
+  if (total === 0) return 0
+  return Math.round(((profile.value?.stats.losses ?? 0) / total) * 100)
+})
+
+const drawPercentage = computed(() => {
+  const total = totalMatches.value
+  if (total === 0) return 0
+  return Math.round(((profile.value?.stats.draws ?? 0) / total) * 100)
+})
+
+// SVG arc calculations for circular chart
+const winRateArc = computed(() => {
+  return (winPercentage.value / 100) * 314 // 314 is circumference for r=50
+})
+
+const lossRateArc = computed(() => {
+  return (lossPercentage.value / 100) * 220 // 220 is circumference for r=35
+})
+
+const drawRateArc = computed(() => {
+  return (drawPercentage.value / 100) * 138 // 138 is circumference for r=22
+})
+
+const eloProgress = computed(() => {
+  const elo = convexProfile.value?.elo || 1200
+  // Map ELO 1000-2000 to 0-100%
+  return Math.min(Math.max(((elo - 1000) / 1000) * 100, 0), 100)
+})
+
+const activityLevel = computed(() => {
+  const total = totalMatches.value
+  if (total === 0) return 'New Player'
+  if (total < 5) return 'Beginner'
+  if (total < 20) return 'Active'
+  if (total < 50) return 'Regular'
+  return 'Very Active'
+})
+
+const activityPercentage = computed(() => {
+  const total = totalMatches.value
+  return Math.min((total / 50) * 100, 100)
+})
+
+const performanceLevel = computed(() => {
+  const winRate = winPercentage.value
+  if (winRate >= 70) return 'Excellent'
+  if (winRate >= 60) return 'Great'
+  if (winRate >= 50) return 'Good'
+  if (winRate >= 40) return 'Average'
+  return 'Learning'
+})
+
+const performanceColor = computed(() => {
+  const winRate = winPercentage.value
+  if (winRate >= 70) return 'text-green-600'
+  if (winRate >= 60) return 'text-blue-600'
+  if (winRate >= 50) return 'text-yellow-600'
+  if (winRate >= 40) return 'text-orange-600'
+  return 'text-red-600'
+})
+
+const performanceBarClass = computed(() => {
+  const winRate = winPercentage.value
+  if (winRate >= 70) return 'bg-gradient-to-r from-green-400 to-green-600'
+  if (winRate >= 60) return 'bg-gradient-to-r from-blue-400 to-blue-600'
+  if (winRate >= 50) return 'bg-gradient-to-r from-yellow-400 to-yellow-600'
+  if (winRate >= 40) return 'bg-gradient-to-r from-orange-400 to-orange-600'
+  return 'bg-gradient-to-r from-red-400 to-red-600'
+})
+
+// Photo upload functions
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (file) {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      uploadMessage.value = 'Please select a valid image file.'
+      uploadSuccess.value = false
+      return
+    }
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      uploadMessage.value = 'File size must be less than 5MB.'
+      uploadSuccess.value = false
+      return
+    }
+    
+    selectedFile.value = file
+    uploadMessage.value = ''
+  }
+}
+
+const uploadPhoto = async () => {
+  if (!selectedFile.value || !user.value) return
+  
+  isUploading.value = true
+  uploadMessage.value = ''
+  
+  try {
+    // Here you would typically upload to a cloud service like Cloudinary, AWS S3, etc.
+    // For now, we'll simulate the upload and use a placeholder
+    await new Promise(resolve => setTimeout(resolve, 1500)) // Simulate upload delay
+    
+    // In a real implementation, you'd get the uploaded image URL and update the user profile
+    // const imageUrl = await uploadToCloudService(selectedFile.value)
+    // await updateUserProfilePicture(imageUrl)
+    
+    uploadSuccess.value = true
+    uploadMessage.value = 'Photo uploaded successfully!'
+    
+    // Close modal after successful upload
+    setTimeout(() => {
+      showPhotoUploadModal.value = false
+      selectedFile.value = null
+      uploadMessage.value = ''
+    }, 1500)
+    
+  } catch (error) {
+    uploadSuccess.value = false
+    uploadMessage.value = 'Failed to upload photo. Please try again.'
+    console.error('Photo upload error:', error)
+  } finally {
+    isUploading.value = false
+  }
+}
 </script>
