@@ -90,37 +90,98 @@
 
           <div
             v-if="isLoggedIn"
-            class="flex flex-col gap-2 md:flex-row md:items-center md:gap-2"
+            class="relative flex flex-col gap-2 md:flex-row md:items-center md:gap-2"
           >
-            <NuxtLink
-              to="/account"
-              class="flex w-full items-center justify-between gap-3 rounded-full border border-[#021d94]/30 bg-white/80 px-4 py-2 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/60 hover:bg-white md:w-auto"
-              @click="closeMenu"
-            >
-              <span class="flex items-center gap-3">
-                <span
-                  v-if="authUser?.picture"
-                  class="grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-white/70 bg-white/60 shadow-sm"
-                >
-                  <img :src="authUser.picture" :alt="authUserName" class="h-full w-full object-cover" />
+            <div class="relative">
+              <button
+                type="button"
+                class="flex w-full items-center justify-between gap-3 rounded-full border border-[#021d94]/30 bg-white/80 px-4 py-2 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/60 hover:bg-white md:w-auto"
+                @click="toggleProfileDropdown"
+                :aria-expanded="isProfileDropdownOpen"
+              >
+                <span class="flex items-center gap-3">
+                  <span
+                    v-if="authUser?.picture"
+                    class="grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-white/70 bg-white/60 shadow-sm"
+                  >
+                    <img :src="authUser.picture" :alt="authUserName" class="h-full w-full object-cover" />
+                  </span>
+                  <span
+                    v-else
+                    class="grid h-8 w-8 place-items-center rounded-full bg-[#021d94]/15 text-xs font-bold uppercase text-[#021d94]"
+                  >
+                    {{ authUserInitials }}
+                  </span>
+                  <span>{{ authUserName }}</span>
                 </span>
-                <span
-                  v-else
-                  class="grid h-8 w-8 place-items-center rounded-full bg-[#021d94]/15 text-xs font-bold uppercase text-[#021d94]"
+                <svg
+                  class="h-4 w-4 transition-transform duration-200"
+                  :class="{ 'rotate-180': isProfileDropdownOpen }"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
                 >
-                  {{ authUserInitials }}
-                </span>
-                <span>{{ authUserName }}</span>
-              </span>
-              <span class="text-xs uppercase tracking-wide text-[#021d94]/70">Profile</span>
-            </NuxtLink>
-            <button
-              type="button"
-              class="w-full rounded-full border border-transparent bg-[#021d94]/10 px-4 py-2 text-sm font-semibold text-[#021d94] transition hover:bg-[#021d94]/15 md:w-auto"
-              @click="handleLogout"
-            >
-              Sign out
-            </button>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+
+              <!-- Dropdown Menu -->
+              <Transition name="dropdown">
+                <div
+                  v-if="isProfileDropdownOpen"
+                  class="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[200px] rounded-2xl border border-white/70 bg-white/95 p-2 shadow-xl backdrop-blur-xl"
+                >
+                  <NuxtLink
+                    to="/account"
+                    class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white/70 hover:text-[#021d94]"
+                    @click="closeProfileDropdown"
+                  >
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    Profile
+                  </NuxtLink>
+                  
+                  <button
+                    v-if="isAdmin"
+                    type="button"
+                    class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-white/70 hover:text-[#021d94]"
+                    @click="handleAdminAccess"
+                  >
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+                    </svg>
+                    Admin Panel
+                  </button>
+
+                  <div class="my-2 h-px bg-slate-200"></div>
+                  
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                    @click="handleLogout"
+                  >
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16,17 21,12 16,7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Sign out
+                  </button>
+                </div>
+              </Transition>
+
+              <!-- Backdrop for mobile -->
+              <Transition name="fade">
+                <div
+                  v-if="isProfileDropdownOpen"
+                  class="fixed inset-0 z-40 md:hidden"
+                  @click="closeProfileDropdown"
+                />
+              </Transition>
+            </div>
           </div>
           <NuxtLink
             v-else
@@ -171,32 +232,55 @@
             <div v-if="isLoggedIn" class="flex flex-col gap-3 pt-1">
               <NuxtLink
                 to="/account"
-                class="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#021d94]/30 bg-white px-4 py-3 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/60 hover:bg-white"
+                class="flex w-full items-center gap-3 rounded-2xl border border-[#021d94]/30 bg-white px-4 py-3 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/60 hover:bg-white"
                 @click="closeMenu"
               >
-                <span class="flex items-center gap-3">
-                  <span
-                    v-if="authUser?.picture"
-                    class="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-white/70 bg-white/60 shadow-sm"
-                  >
-                    <img :src="authUser.picture" :alt="authUserName" class="h-full w-full object-cover" />
-                  </span>
-                  <span
-                    v-else
-                    class="grid h-9 w-9 place-items-center rounded-full bg-[#021d94]/15 text-sm font-bold uppercase text-[#021d94]"
-                  >
-                    {{ authUserInitials }}
-                  </span>
-                  <span>{{ authUserName }}</span>
+                <span
+                  v-if="authUser?.picture"
+                  class="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-white/70 bg-white/60 shadow-sm"
+                >
+                  <img :src="authUser.picture" :alt="authUserName" class="h-full w-full object-cover" />
                 </span>
-                <span class="text-xs uppercase tracking-wide text-[#021d94]/70">Profile</span>
+                <span
+                  v-else
+                  class="grid h-9 w-9 place-items-center rounded-full bg-[#021d94]/15 text-sm font-bold uppercase text-[#021d94]"
+                >
+                  {{ authUserInitials }}
+                </span>
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>Profile</span>
               </NuxtLink>
+              
+              <button
+                v-if="isAdmin"
+                type="button"
+                class="flex w-full items-center gap-3 rounded-2xl border border-transparent bg-white px-4 py-3 text-sm font-semibold text-[#021d94] transition hover:bg-white/80"
+                @click="handleAdminAccess"
+              >
+                <div class="grid h-9 w-9 place-items-center rounded-full bg-[#021d94]/15 text-[#021d94]">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
+                  </svg>
+                </div>
+                <span>Admin Panel</span>
+              </button>
+              
               <button
                 type="button"
-                class="w-full rounded-2xl border border-transparent bg-[#021d94]/10 px-4 py-3 text-sm font-semibold text-[#021d94] transition hover:bg-[#021d94]/15"
+                class="flex w-full items-center gap-3 rounded-2xl border border-transparent bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
                 @click="handleLogout"
               >
-                Sign out
+                <div class="grid h-9 w-9 place-items-center rounded-full bg-red-100 text-red-600">
+                  <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16,17 21,12 16,7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </div>
+                <span>Sign out</span>
               </button>
             </div>
             <NuxtLink
@@ -259,14 +343,22 @@ const navItems: readonly NavigationItem[] = [
   { label: 'Settings', to: '/settings' },
   { label: 'FAQ', to: '/faq' },
   { label: 'Modes', to: '/modes' },
-  { label: 'Admin', to: '/admin' },
 ] as const
 
 const isMenuOpen = ref(false)
 const isSearchModalOpen = ref(false)
+const isProfileDropdownOpen = ref(false)
 
 const closeMenu = () => {
   isMenuOpen.value = false
+}
+
+const closeProfileDropdown = () => {
+  isProfileDropdownOpen.value = false
+}
+
+const toggleProfileDropdown = () => {
+  isProfileDropdownOpen.value = !isProfileDropdownOpen.value
 }
 
 const openSearchModal = () => {
@@ -321,6 +413,20 @@ const spotlightStyle = computed(() => {
 })
 
 const isLoggedIn = computed(() => Boolean(authUser.value))
+
+// Admin authorization check
+const isAdmin = computed(() => {
+  // Authorized ADNU personnel emails
+  const adminEmails = [
+    'lojenar@gbox.adnu.edu.ph', // Your email
+    // Add other authorized ADNU admin emails here as needed
+    // 'admin@gbox.adnu.edu.ph',
+    // 'it.admin@gbox.adnu.edu.ph',
+    // 'faculty.admin@gbox.adnu.edu.ph'
+  ]
+  return authUser.value && adminEmails.includes(authUser.value.email)
+})
+
 const authUserName = computed(() => authUser.value?.name || authUser.value?.email || 'AdNU Player')
 const authUserInitials = computed(() => {
   if (!authUser.value) {
@@ -343,7 +449,14 @@ const handlePointerMove = (event: PointerEvent) => {
 const handleLogout = async () => {
   await logout()
   closeMenu()
+  closeProfileDropdown()
   await navigateTo('/welcome')
+}
+
+const handleAdminAccess = () => {
+  closeProfileDropdown()
+  closeMenu()
+  navigateTo('/admin')
 }
 
 onMounted(() => {
@@ -359,6 +472,7 @@ watch(
   () => route.fullPath,
   () => {
     closeMenu()
+    closeProfileDropdown()
   }
 )
 </script>
@@ -392,6 +506,15 @@ watch(
 .mobile-nav-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.95);
 }
 </style>
 
