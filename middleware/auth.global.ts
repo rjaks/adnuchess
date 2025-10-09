@@ -3,6 +3,7 @@ import { useAuth } from '~/composables/useAuth'
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const publicPaths = ['/welcome', '/login']
+  const adminPaths = ['/admin'] // Allow admin pages to load for everyone
 
   // Skip middleware for Nuxt internal routes and API routes
   if (to.path.startsWith('/_nuxt') || to.path.startsWith('/__nuxt_error') || to.path.startsWith('/api/')) {
@@ -22,6 +23,11 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   // Wait for auth state to be available before making redirect decisions
   if (process.server || auth.isInitialized.value) {
+    // Allow admin pages to load for everyone (they handle access control internally)
+    if (adminPaths.some(path => to.path.startsWith(path))) {
+      return
+    }
+
     // Only redirect if user is NOT authenticated and trying to access protected routes
     if (!auth.user.value && !publicPaths.includes(to.path)) {
       return navigateTo('/welcome')

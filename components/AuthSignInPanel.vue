@@ -27,6 +27,12 @@ import { computed, onMounted, ref } from 'vue'
 import { navigateTo, useRuntimeConfig } from '#imports'
 import { useAuth } from '~/composables/useAuth'
 
+declare global {
+  interface Window {
+    google?: any
+  }
+}
+
 type GoogleIdentityCredential = {
   credential: string
 }

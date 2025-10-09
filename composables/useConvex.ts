@@ -6,7 +6,50 @@ export function useConvex() {
   const { $convex } = useNuxtApp()
   const loading = ref(false)
   const error = ref<Error | null>(null)
-    // Get game by ID
+
+  // Generic API wrapper
+  const apiWrapper = {
+    query: async (module: string, functionName: string, args?: any) => {
+      try {
+        // Try direct path first
+        const result = await $convex.query(`${module}:${functionName}`, args || {})
+        return result
+      } catch (pathError: any) {
+        // Fall back to constructed API path if available
+        try {
+          const apiModule = (api as any)[module]
+          const apiPath = apiModule?.[functionName]
+          if (apiPath) {
+            return await $convex.query(apiPath, args || {})
+          }
+          throw pathError
+        } catch (apiError) {
+          throw pathError
+        }
+      }
+    },
+    mutation: async (module: string, functionName: string, args?: any) => {
+      try {
+        // Try direct path first
+        const result = await $convex.mutation(`${module}:${functionName}`, args || {})
+        return result
+      } catch (pathError: any) {
+        // Fall back to constructed API path if available
+        try {
+          const apiModule = (api as any)[module]
+          const apiPath = apiModule?.[functionName]
+          if (apiPath) {
+            return await $convex.mutation(apiPath, args || {})
+          }
+          throw pathError
+        } catch (apiError) {
+          throw pathError
+        }
+      }
+    }
+  }
+
+  // Get game by ID
   async function getGame(gameId: string) {
     loading.value = true
     error.value = null
@@ -21,6 +64,7 @@ export function useConvex() {
       loading.value = false
     }
   }
+
   // Make a move
   async function makeMove(gameId: string, move: string, playerId: string) {
     loading.value = true
@@ -46,7 +90,8 @@ export function useConvex() {
       loading.value = false
     }
   }
-    // Subscribe to game updates
+
+  // Subscribe to game updates
   function subscribeToGame(gameId: string, callback: (game: any) => void) {
     try {
       return $convex.onUpdate(
@@ -64,6 +109,7 @@ export function useConvex() {
   return {
     loading: computed(() => loading.value),
     error: computed(() => error.value),
+    api: apiWrapper,
     getGame,
     makeMove,
     subscribeToGame,
