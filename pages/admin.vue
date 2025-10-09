@@ -5,6 +5,81 @@
       <p class="text-slate-600 mt-2">Manage chess games and puzzle content</p>
     </header>
 
+    <!-- Quick Navigation (visible to all admin users) -->
+    <nav v-if="isAdmin" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <NuxtLink
+        to="/admin/announcements"
+        class="group rounded-2xl border border-white/60 bg-white/80 p-6 shadow-lg backdrop-blur-xl transition hover:shadow-xl"
+      >
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+            <svg class="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 19l7-7 3 3-7 7-3-3z" />
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-slate-900 group-hover:text-blue-600">Announcements</h3>
+            <p class="text-sm text-slate-600">Manage site announcements</p>
+          </div>
+        </div>
+      </NuxtLink>
+
+      <NuxtLink
+        to="/admin/weekly"
+        class="group rounded-2xl border border-white/60 bg-white/80 p-6 shadow-lg backdrop-blur-xl transition hover:shadow-xl"
+      >
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <svg class="h-6 w-6 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 2v4" />
+              <path d="M16 2v4" />
+              <rect width="18" height="18" x="3" y="4" rx="2" />
+              <path d="M3 10h18" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-slate-900 group-hover:text-green-600">Weekly Content</h3>
+            <p class="text-sm text-slate-600">Manage weekly features</p>
+          </div>
+        </div>
+      </NuxtLink>
+
+      <NuxtLink
+        to="/admin/puzzles"
+        class="group rounded-2xl border border-white/60 bg-white/80 p-6 shadow-lg backdrop-blur-xl transition hover:shadow-xl"
+      >
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
+            <svg class="h-6 w-6 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-slate-900 group-hover:text-purple-600">Puzzle Manager</h3>
+            <p class="text-sm text-slate-600">Create and edit puzzles</p>
+          </div>
+        </div>
+      </NuxtLink>
+
+      <div class="rounded-2xl border border-white/60 bg-gradient-to-br from-orange-50 to-orange-100 p-6 shadow-lg backdrop-blur-xl">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
+            <svg class="h-6 w-6 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12,6 12,12 16,14" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-semibold text-slate-900">Game Management</h3>
+            <p class="text-sm text-slate-600">Current section</p>
+          </div>
+        </div>
+      </div>
+    </nav>
+
     <!-- Check if user is authorized for admin functions -->
     <div v-if="!isAdmin" class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
       <h2 class="text-xl font-bold text-red-700 mb-2">Access Denied</h2>
