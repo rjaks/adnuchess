@@ -1,8 +1,9 @@
 import { navigateTo } from '#imports'
 import { useAuth } from '~/composables/useAuth'
+import { api } from '../convex/_generated/api'
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
-  const publicPaths = ['/welcome', '/login']
+  const publicPaths = ['/welcome', '/login', '/profile-setup']
   const adminPaths = ['/admin'] // Allow admin pages to load for everyone
 
   // Skip middleware for Nuxt internal routes and API routes
@@ -36,6 +37,31 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     // Only redirect from public paths if user IS authenticated
     if (auth.user.value && publicPaths.includes(to.path)) {
       return navigateTo('/')
+    }
+
+    // Profile setup logic (only on client side where Convex is available)
+    if (process.client && auth.user.value && !publicPaths.slice(0, 2).includes(to.path)) {
+      const user = auth.user.value
+      const { $convex } = useNuxtApp()
+
+      try {
+        await $convex.mutation(api.profiles.upsertFromSession, {
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+          picture: user.picture,
+        })
+
+        const profile = await $convex.query(api.profiles.getByUserId, {
+          userId: user.id,
+        })
+
+        if (!profile?.role && to.path !== '/profile-setup') {
+          return navigateTo('/profile-setup')
+        }
+      } catch (error) {
+        console.error('Profile setup failed:', error)
+      }
     }
   }
 })
