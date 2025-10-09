@@ -350,6 +350,6 @@ onMounted(() => {
 
 definePageMeta({
   title: 'Admin Dashboard',
-  middleware: 'admin'
+  middleware: 'admin-only'
 })
 </script>

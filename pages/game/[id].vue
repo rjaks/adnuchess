@@ -4,7 +4,7 @@
     <div class="rounded-3xl border border-green-200 bg-green-50 p-6 shadow-inner">
       <h3 class="text-lg font-semibold text-green-900">Live Multiplayer Game</h3>
       <p class="mt-2 text-sm text-green-700">
-        This is a real player vs player game using HTTP polling for move synchronization. Moves are synced every 2 seconds.
+        This is a real player vs player game using Convex database for move synchronization. Moves are synced instantly.
       </p>
     </div>
 
