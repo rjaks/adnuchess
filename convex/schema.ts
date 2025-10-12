@@ -10,6 +10,8 @@ export default defineSchema({
     role: v.optional(
       v.union(v.literal("student"), v.literal("faculty"), v.literal("alumni"))
     ),
+    department: v.optional(v.string()),
+    departmentLastChanged: v.optional(v.number()),
     elo: v.number(),
     picture: v.optional(v.string()),
     createdAt: v.number(),

@@ -34,25 +34,33 @@
               {{ initials }}
             </span>
           </div>
-          <div>
+          <div class="space-y-1">
+            <!-- Header Tag -->
             <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/70">
               AdNU Player Profile
             </p>
-            <h1 class="text-3xl font-bold text-slate-900">{{ playerProfile?.name }}</h1>
+            
+            <!-- Main Name -->
+            <h1 class="text-3xl font-bold text-slate-900">{{ playerProfile?.displayName || playerProfile?.name }}</h1>
+            
+            <!-- Email -->
             <p class="text-sm text-slate-500">{{ playerProfile?.email }}</p>
-
-            <!-- Display Name (if it exists) -->
-            <p v-if="playerProfile?.displayName && playerProfile.displayName !== playerProfile?.name" class="text-sm italic text-slate-600 mt-1">
-              Display name: {{ playerProfile.displayName }}
+            
+            <!-- Account name (only show if different from display name) -->
+            <p v-if="playerProfile?.displayName && playerProfile.displayName !== playerProfile?.name" class="text-sm italic text-slate-400">
+              {{ playerProfile?.name }}
             </p>
 
-            <!-- ELO Rating display -->
-            <p class="text-sm font-semibold text-[#021d94] mt-1">
-              ELO Rating: {{ playerProfile?.rating || 1200 }}
+            <!-- Department -->
+            <p v-if="playerProfile?.department" class="text-sm text-slate-600 font-medium">
+              {{ playerProfile.department.toUpperCase() }}
             </p>
+            
+            <!-- ELO Rating -->
+            <p class="text-sm text-[#021d94] font-semibold">ELO: {{ playerProfile?.rating || 1200 }}</p>
 
-            <!-- Role and Department -->
-            <div class="mt-2 flex flex-wrap gap-2">
+            <!-- Role Badges -->
+            <div class="flex flex-wrap gap-2 pt-1">
               <span
                 v-if="playerProfile?.userType"
                 class="inline-block rounded-full bg-[#021d94] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white"
@@ -66,11 +74,6 @@
                 {{ playerProfile.yearLevel }}
               </span>
             </div>
-
-            <!-- Department -->
-            <p v-if="playerProfile?.department" class="text-xs text-slate-500 mt-1">
-              {{ playerProfile.department }}
-            </p>
           </div>
         </div>
 
@@ -287,7 +290,7 @@ const fetchPlayerProfile = async () => {
     loading.value = true
     error.value = ''
     
-    const response = await $fetch(`/api/players/${playerId}`)
+    const response: any = await $fetch(`/api/players/${playerId}`)
     playerProfile.value = response
   } catch (err: any) {
     error.value = err.data?.message || 'Failed to load player profile'

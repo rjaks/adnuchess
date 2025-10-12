@@ -95,28 +95,8 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Get department from email pattern or use placeholder
-      const departments = [
-        'College of Humanities and Social Sciences',
-        'College of Business and Accountancy',
-        'College of Computer Studies',
-        'College of Education',
-        'College of Science, Engineering, and Architecture',
-        'College of Nursing',
-        'College of Law'
-      ]
-      // For now, just use email domain to determine department
-      const emailDomain = profile.email.split('@')[1] || ''
-      let department = departments[0]
-      
-      if (emailDomain.includes('ccs')) {
-        department = departments[2] // Computer Studies
-      } else if (emailDomain.includes('cba')) {
-        department = departments[1] // Business
-      } else {
-        // Assign a random department for demo purposes
-        department = departments[Math.floor(Math.random() * departments.length)]
-      }
+      // Use department from profile, or fallback to default
+      let department = profile.department || 'College of Computer Studies' // Default fallback
 
       // Use role from profile or default to student
       let userType: 'student' | 'staff' | 'faculty' | 'alumni' = 'student'

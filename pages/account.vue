@@ -27,35 +27,58 @@
                 <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
               </svg>
             </button>
-          </div>
-          <div>
+          </div>          <div class="space-y-1">
+            <!-- Header Tag -->
             <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/70">
               AdNU Player Profile
             </p>
+            
+            <!-- Main Name Section -->
             <div class="flex items-center gap-2">
-              <h1 class="text-3xl font-bold text-slate-900">{{ profile?.name }}</h1>
+              <h1 class="text-3xl font-bold text-slate-900">{{ displayedName }}</h1>
               <button 
                 @click="showDisplayNameModal = true" 
-                class="inline-flex items-center justify-center rounded-full w-8 h-8 bg-white border border-[#021d94]/20 text-[#021d94] hover:bg-[#021d94]/5 transition-colors"
+                class="inline-flex items-center justify-center rounded-full w-6 h-6 bg-white border border-[#021d94]/20 text-[#021d94] hover:bg-[#021d94]/5 transition-colors opacity-70 hover:opacity-100"
                 title="Edit display name"
               >
                 <span class="sr-only">Edit display name</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                 </svg>
               </button>
             </div>
+            
+            <!-- Email -->
             <p class="text-sm text-slate-500">{{ profile?.email }}</p>
-
-            <!-- Display Name (if it exists) -->
-            <p v-if="convexProfile?.displayName && convexProfile.displayName !== profile?.name" class="text-sm italic text-slate-600 mt-1">
-              Display name: {{ convexProfile.displayName }}
-            </p>
-
-            <!-- ELO Rating display -->
-            <p class="text-sm font-semibold text-[#021d94] mt-1">
-              ELO Rating: {{ convexProfile?.elo || 1200 }}
-            </p>
+            
+            <!-- Account name (only show if different from display name) -->
+            <p v-if="convexProfile?.displayName && convexProfile.displayName !== profile?.name" class="text-sm italic text-slate-400">
+              {{ profile?.name }}
+            </p>            <!-- Department with edit button -->
+            <div class="flex items-center gap-2">
+              <p class="text-sm text-slate-600 font-medium">
+                {{ (convexProfile?.department || 'Not specified').toUpperCase() }}
+              </p>
+              <button 
+                @click="showDepartmentModal = true" 
+                class="inline-flex items-center justify-center rounded-full w-5 h-5 bg-white border border-[#021d94]/20 text-[#021d94] hover:bg-[#021d94]/5 transition-colors opacity-60 hover:opacity-100"
+                :title="departmentCooldown?.canChange ? 'Edit department' : `Department change available in ${departmentCooldown?.remainingDays} days`"
+              >
+                <span class="sr-only">Edit department</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                </svg>
+              </button>
+              <!-- Cooldown indicator -->
+              <div v-if="departmentCooldown && !departmentCooldown.canChange" class="flex items-center">
+                <svg class="h-3 w-3 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" :title="`Cannot change for ${departmentCooldown.remainingDays} more days`">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            
+            <!-- ELO Rating -->
+            <p class="text-sm text-[#021d94] font-semibold">ELO: {{ convexProfile?.elo || 1200 }}</p>
 
             <!-- Role pill / link -->
             <div class="mt-2">
@@ -431,6 +454,153 @@
           <p class="text-sm" :class="updateSuccess ? 'text-green-600' : 'text-red-600'">
             {{ updateMessage }}
           </p>
+        </div>      </div>
+    </div>
+  </div>
+
+  <!-- Department Edit Modal -->
+  <div v-if="showDepartmentModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="department-modal-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <!-- Background overlay -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" @click="showDepartmentModal = false"></div>
+
+      <!-- Modal panel -->
+      <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div class="sm:flex sm:items-start">
+            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#021d94]/10 sm:mx-0 sm:h-10 sm:w-10">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#021d94]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+              <h3 class="text-lg font-medium leading-6 text-gray-900" id="department-modal-title">Edit Department</h3>
+              <div class="mt-2">
+                <p class="text-sm text-gray-500">
+                  Specify your department or college at AdNU. This helps other players identify you and appears on the leaderboard.
+                </p>
+              </div>
+                <div class="mt-4">
+                <label for="modal-department" class="block text-sm font-medium text-gray-700">Department/College</label>
+                <div class="mt-1">
+                  <select
+                    id="modal-department"
+                    v-model="department"
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-[#021d94] focus:ring-[#021d94] sm:text-sm"
+                  >
+                    <option value="">Select your college...</option>
+                    <option v-for="college in adnuColleges" :key="college.value" :value="college.label">
+                      {{ college.label }}
+                    </option>
+                  </select>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Choose your college or department at Ateneo de Naga University.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+          <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <button
+            @click="checkDepartmentChangeAndProceed"
+            type="button"
+            class="inline-flex w-full justify-center rounded-md border border-transparent bg-[#021d94] px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-[#021d94]/90 focus:outline-none focus:ring-2 focus:ring-[#021d94] focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+            :disabled="isDepartmentUpdating"
+          >
+            <span v-if="isDepartmentUpdating">Updating...</span>
+            <span v-else>Save</span>
+          </button>
+          <button
+            @click="showDepartmentModal = false"
+            type="button"
+            class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+        
+        <!-- Cooldown Status -->
+        <div v-if="departmentCooldown && !departmentCooldown.canChange" class="bg-amber-50 border-t border-amber-200 px-4 py-3">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-medium text-amber-800">Department Change Restriction</h3>
+              <div class="mt-1 text-sm text-amber-700">
+                <p>You can change your department again in <strong>{{ departmentCooldown.remainingDays }}</strong> days ({{ departmentCooldown.nextChangeDate }}).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="departmentUpdateMessage" class="px-4 py-3 text-center">
+          <p class="text-sm" :class="departmentUpdateSuccess ? 'text-green-600' : 'text-red-600'">
+            {{ departmentUpdateMessage }}
+          </p>
+        </div>
+      </div>    </div>
+  </div>
+
+  <!-- Department Change Confirmation Modal -->
+  <div v-if="showDepartmentConfirmModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="confirm-modal-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <!-- Background overlay -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+
+      <!-- Modal panel -->
+      <div class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div class="sm:flex sm:items-start">
+            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 sm:mx-0 sm:h-10 sm:w-10">
+              <svg class="h-6 w-6 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+              <h3 class="text-lg font-medium leading-6 text-gray-900" id="confirm-modal-title">Confirm Department Change</h3>
+              <div class="mt-2">
+                <p class="text-sm text-gray-500">
+                  Are you sure you want to change your department? 
+                  <strong class="text-amber-600">This action can only be done once per year.</strong>
+                </p>
+                <div class="mt-3 p-3 bg-amber-50 rounded-md border border-amber-200">
+                  <p class="text-sm text-amber-700">
+                    <strong>Important:</strong> After changing your department, you will need to wait one full year before you can change it again. 
+                    This helps maintain the integrity of departmental rankings and prevents abuse.
+                  </p>
+                </div>
+                <div class="mt-3">
+                  <p class="text-sm text-gray-700">
+                    <strong>Current:</strong> {{ (convexProfile?.department || 'Not specified').toUpperCase() }}
+                  </p>
+                  <p class="text-sm text-gray-700">
+                    <strong>New:</strong> {{ (department || 'Not specified').toUpperCase() }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <button
+            @click="confirmDepartmentChange"
+            type="button"
+            class="inline-flex w-full justify-center rounded-md border border-transparent bg-amber-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+            :disabled="isDepartmentUpdating"
+          >
+            <span v-if="isDepartmentUpdating">Updating...</span>
+            <span v-else>Yes, Change Department</span>
+          </button>
+          <button
+            @click="cancelDepartmentChange"
+            type="button"
+            class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -455,12 +625,36 @@ const updateMessage = ref('')
 const updateSuccess = ref(false)
 const showDisplayNameModal = ref(false)
 
+// For department editing
+const department = ref('')
+const isDepartmentUpdating = ref(false)
+const departmentUpdateMessage = ref('')
+const departmentUpdateSuccess = ref(false)
+const showDepartmentModal = ref(false)
+const showDepartmentConfirmModal = ref(false)
+const departmentCooldown = ref<{
+  canChange: boolean
+  remainingDays: number
+  nextChangeDate: string | null
+} | null>(null)
+
 // For photo upload
 const showPhotoUploadModal = ref(false)
 const selectedFile = ref<File | null>(null)
 const isUploading = ref(false)
 const uploadMessage = ref('')
 const uploadSuccess = ref(false)
+
+// AdNU Colleges list
+const adnuColleges = [
+  { value: 'humanities-social-sciences', label: 'College of Humanities and Social Sciences' },
+  { value: 'business-accountancy', label: 'College of Business and Accountancy' },
+  { value: 'computer-studies', label: 'College of Computer Studies' },
+  { value: 'education', label: 'College of Education' },
+  { value: 'science-engineering-architecture', label: 'College of Science, Engineering, and Architecture' },
+  { value: 'nursing', label: 'College of Nursing' },
+  { value: 'law', label: 'College of Law' }
+]
 
 const fetchProfile = async () => {
   if (!user.value) return
@@ -471,10 +665,18 @@ const fetchProfile = async () => {
       userId: user.value.id,
     })
     
+    // Fetch department cooldown status
+    const cooldownStatus = await $convex.query(api.profiles.checkDepartmentCooldown, {
+      userId: user.value.id,
+    })
+    
     if (profile) {
       convexProfile.value = profile
+      departmentCooldown.value = cooldownStatus
       // Initialize the display name input with current value (if any)
       displayName.value = profile.displayName || ''
+      // Initialize the department input with current value (if any)
+      department.value = profile.department || ''
     }
   } catch (error) {
     console.error("Error fetching profile:", error)
@@ -531,6 +733,90 @@ const updateDisplayNameAndCloseModal = async () => {
   }
 }
 
+const updateDepartment = async () => {
+  if (!user.value) return
+  
+  isDepartmentUpdating.value = true
+  departmentUpdateMessage.value = ''
+  
+  try {
+    // Use null to remove the department if it's empty
+    const cleanDepartment = department.value.trim() === '' ? null : department.value.trim()
+    
+    await $convex.mutation(api.profiles.updateDepartment, {
+      userId: user.value.id,
+      department: cleanDepartment
+    })
+    
+    // Refresh profile after update
+    await fetchProfile()
+    
+    departmentUpdateSuccess.value = true
+    departmentUpdateMessage.value = 'Department updated successfully!'
+    
+    // Clear message after a delay
+    setTimeout(() => {
+      departmentUpdateMessage.value = ''
+    }, 3000)
+  } catch (error: any) {
+    departmentUpdateSuccess.value = false
+    // Display the specific error message from the backend (cooldown error)
+    departmentUpdateMessage.value = error.message || 'Failed to update department. Please try again.'
+    console.error("Error updating department:", error)
+  } finally {
+    isDepartmentUpdating.value = false
+  }
+}
+
+const checkDepartmentChangeAndProceed = async () => {
+  if (!user.value || !convexProfile.value) return
+  
+  // Check if department is actually changing
+  const cleanDepartment = department.value.trim() === '' ? null : department.value.trim()
+  const isDepartmentChanging = convexProfile.value.department !== cleanDepartment
+  
+  // If not changing, just proceed with update
+  if (!isDepartmentChanging) {
+    await updateDepartment()
+    if (departmentUpdateSuccess.value) {
+      setTimeout(() => {
+        showDepartmentModal.value = false
+      }, 1000)
+    }
+    return
+  }
+  
+  // If changing and user has never changed before, show confirmation
+  // If changing and cooldown allows it, show confirmation
+  // If changing and cooldown doesn't allow it, the error will be shown by updateDepartment
+  if (departmentCooldown.value?.canChange) {
+    showDepartmentConfirmModal.value = true
+  } else {
+    // Try to update directly - this will show the cooldown error
+    await updateDepartment()
+  }
+}
+
+const confirmDepartmentChange = async () => {
+  showDepartmentConfirmModal.value = false
+  await updateDepartment()
+  
+  if (departmentUpdateSuccess.value) {
+    // Only close the modal if the update was successful
+    setTimeout(() => {
+      showDepartmentModal.value = false
+    }, 1000)
+  }
+}
+
+const cancelDepartmentChange = () => {
+  showDepartmentConfirmModal.value = false
+  // Reset department to original value
+  if (convexProfile.value) {
+    department.value = convexProfile.value.department || ''
+  }
+}
+
 const profile = computed(() => user.value)
 
 // Convex profile + role pill text
@@ -538,6 +824,11 @@ const convexProfile = ref<any | null>(null)
 const roleLabel = computed(() => {
   const r = convexProfile.value?.role as string | undefined
   return r ? r.charAt(0).toUpperCase() + r.slice(1) : ''
+})
+
+const displayedName = computed(() => {
+  // Use display name if it exists, otherwise use account name
+  return convexProfile.value?.displayName || profile.value?.name || 'User'
 })
 
 const initials = computed(() => {
