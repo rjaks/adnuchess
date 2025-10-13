@@ -8,6 +8,14 @@ export default defineNuxtConfig({
   css: [],
   compatibilityDate: '2025-09-19',
   ssr: true,
+  app: {
+    head: {
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }
+      ]
+    }
+  },
   runtimeConfig: {
     googleClientId,
     sessionTtlDays,
