@@ -1,15 +1,6 @@
 // filepath: c:\Users\Adrian\Documents\github\adnuchess\components\PollingChessGame.vue
 <template>
   <div class="space-y-6">
-    <!-- Debug Panel -->
-    <ChessDebugPanel 
-      :game-id="props.gameId"
-      :game-state="gameState"
-      :my-color="myColor"
-      :is-my-turn="isMyTurn"
-      @refresh="loadGameState"
-    />
-    
     <!-- Game Loading -->
     <div v-if="!gameLoaded" class="text-center py-12">
       <div class="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/80 px-6 py-3 shadow-lg">

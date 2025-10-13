@@ -4,7 +4,7 @@
     <div class="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-inner">
       <h3 class="text-lg font-semibold text-blue-900">Real Multiplayer System</h3>
       <p class="mt-2 text-sm text-blue-700">
-        This is a fully functional player vs player matchmaking system using HTTP polling for real-time gameplay.
+        This is a fully functional player vs player matchmaking system using Convex for real-time gameplay.
       </p>
     </div>
     <!-- Header -->

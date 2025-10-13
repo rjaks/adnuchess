@@ -4,7 +4,10 @@
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-slate-900">Announcements Management</h1>
-        <p class="mt-2 text-slate-600">Manage site-wide announcements and news</p>
+        <p class="mt-2 text-slatdefinePageMeta({
+  title: 'Announcement Management',
+  middleware: 'adminOnly'
+})0">Manage site-wide announcements and news</p>
       </div>
 
       <!-- Quick Actions -->
@@ -298,6 +301,6 @@ onMounted(() => {
 
 definePageMeta({
   title: 'Announcements Management',
-  middleware: 'admin'
+  middleware: 'admin-only'
 })
 </script>

@@ -572,6 +572,6 @@ onMounted(() => {
 
 definePageMeta({
   title: 'Weekly Content Management',
-  middleware: 'admin'
+  middleware: 'admin-only'
 })
 </script>
