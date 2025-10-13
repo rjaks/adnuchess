@@ -1,25 +1,38 @@
 import { z } from 'zod'
 
-// Common validation schemas
-export const gameMode = z.enum(['blitz', 'rapid', 'classical', 'bullet'])
-export const color = z.enum(['white', 'black'])
-export const gameStatus = z.enum(['waiting', 'active', 'finished'])
+// Export z for other files to use
+export { z }
+
+// Common validation schemas - wrapped in functions to avoid auto-import issues
+export const getGameMode = () => z.enum(['blitz', 'rapid', 'classical', 'bullet'])
+export const getColor = () => z.enum(['white', 'black'])
+export const getGameStatus = () => z.enum(['waiting', 'active', 'finished'])
 
 // User validation
-export const userId = z.string().min(1, 'User ID is required')
-export const userName = z.string().min(1).max(100, 'Name must be 1-100 characters')
-export const userEmail = z.string().email('Invalid email format')
+export const getUserId = () => z.string().min(1, 'User ID is required')
+export const getUserName = () => z.string().min(1).max(100, 'Name must be 1-100 characters')
+export const getUserEmail = () => z.string().email('Invalid email format')
 
 // Chess game validation
-export const fenString = z.string().regex(
+export const getFenString = () => z.string().regex(
   /^([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+\s[bw]\s(-|[KQkq]+)\s(-|[a-h][3-6])\s\d+\s\d+$/,
   'Invalid FEN string'
 )
 
-export const chessMove = z.string().regex(
+export const getChessMove = () => z.string().regex(
   /^[a-h][1-8][a-h][1-8][qrbn]?$/,
   'Invalid chess move format'
 )
+
+// Backward compatibility - keep the original exports but make them lazy
+export const gameMode = getGameMode()
+export const color = getColor()
+export const gameStatus = getGameStatus()
+export const userId = getUserId()
+export const userName = getUserName()
+export const userEmail = getUserEmail()
+export const fenString = getFenString()
+export const chessMove = getChessMove()
 
 // Matchmaking schemas
 export const joinQueueSchema = z.object({
@@ -109,7 +122,7 @@ export const validateInput = <T>(schema: z.ZodSchema<T>, data: unknown): T => {
     return schema.parse(data)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+      const message = error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')
       throw new Error(`Validation failed: ${message}`)
     }
     throw error
@@ -126,7 +139,7 @@ export const safeValidate = <T>(schema: z.ZodSchema<T>, data: unknown): {
     return { success: true, data: result }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const message = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+      const message = error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')
       return { success: false, error: message }
     }
     return { success: false, error: 'Unknown validation error' }

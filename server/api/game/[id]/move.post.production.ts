@@ -3,7 +3,8 @@ import { getUserSession } from '~/server/utils/sessionStore'
 import { log } from '~/server/utils/logger'
 import { rateLimitHelpers } from '~/server/utils/rateLimit'
 import { handleError, errors } from '~/server/utils/errorHandler'
-import { validateRequest, commonValidations, z } from '~/server/utils/requestValidation'
+import { validateRequest, createCommonValidation } from '~/server/utils/requestValidation'
+import { z } from '~/server/utils/validation'
 
 // Enhanced move validation schema
 const moveSchema = z.object({

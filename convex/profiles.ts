@@ -20,30 +20,121 @@ export const upsertFromSession = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    
+    // Use a retry mechanism with exponential backoff for write conflicts
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const existing = await ctx.db
+          .query("profiles")
+          .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+          .unique();
+
+        if (existing) {
+          // Only update if data has actually changed to reduce conflicts
+          const needsUpdate = 
+            existing.name !== args.name ||
+            (args.picture && existing.picture !== args.picture);
+            
+          if (needsUpdate) {
+            await ctx.db.patch(existing._id, {
+              name: args.name,
+              picture: args.picture ?? existing.picture,
+              updatedAt: now,
+            });
+          }
+          return existing._id;
+        }
+
+        // For new profiles, use a unique constraint approach
+        return await ctx.db.insert("profiles", {
+          userId: args.userId,
+          email: args.email,
+          name: args.name,
+          role: undefined, // force profile completion
+          elo: 1200,
+          picture: args.picture,
+          createdAt: now,
+          updatedAt: now,
+        });
+        
+      } catch (error: any) {
+        // Check if this is a write conflict
+        if (error?.message?.includes('write conflict') || error?.message?.includes('Write conflicts')) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            console.error(`Profile upsert failed after ${maxRetries} retries for user ${args.userId}:`, error);
+            throw new Error(`Profile creation failed due to conflicts. Please try again.`);
+          }
+          
+          // Exponential backoff: wait 100ms, 200ms, 400ms
+          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, retryCount - 1)));
+          continue;
+        }
+        
+        // If it's not a write conflict, re-throw immediately
+        throw error;
+      }
+    }
+    
+    throw new Error('Unexpected error in profile upsert');
+  },
+});
+
+// Safer profile creation for initial registration - handles conflicts gracefully
+export const createInitialProfile = mutation({
+  args: {
+    userId: v.string(),
+    email: v.string(),
+    name: v.string(),
+    picture: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    // First, check if profile already exists
     const existing = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .unique();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        name: args.name,
-        picture: args.picture ?? existing.picture,
-        updatedAt: now,
-      });
-      return existing._id;
+      // Profile already exists, just return it
+      return { _id: existing._id, created: false };
     }
 
-    return await ctx.db.insert("profiles", {
-      userId: args.userId,
-      email: args.email,
-      name: args.name,
-      role: undefined, // force profile completion
-      elo: 1200,
-      picture: args.picture,
-      createdAt: now,
-      updatedAt: now,
-    });
+    try {
+      // Attempt to create new profile
+      const profileId = await ctx.db.insert("profiles", {
+        userId: args.userId,
+        email: args.email,
+        name: args.name,
+        role: undefined, // force profile completion
+        elo: 1200,
+        picture: args.picture,
+        createdAt: now,
+        updatedAt: now,
+      });
+      
+      return { _id: profileId, created: true };
+      
+    } catch (error: any) {
+      // If insertion fails due to race condition, try to find the profile again
+      if (error?.message?.includes('write conflict') || error?.message?.includes('duplicate')) {
+        const retryProfile = await ctx.db
+          .query("profiles")
+          .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+          .unique();
+          
+        if (retryProfile) {
+          return { _id: retryProfile._id, created: false };
+        }
+      }
+      
+      throw error;
+    }
   },
 });
 
@@ -52,8 +143,9 @@ export const completeProfile = mutation({
     userId: v.string(),
     name: v.string(),
     role: v.union(v.literal("student"), v.literal("faculty"), v.literal("alumni")),
+    department: v.optional(v.string()),
   },
-  handler: async (ctx, { userId, name, role }) => {
+  handler: async (ctx, { userId, name, role, department }) => {
     const doc = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -64,6 +156,7 @@ export const completeProfile = mutation({
     await ctx.db.patch(doc._id, {
       name,
       role,
+      department: department && department.trim() !== "" ? department.trim() : undefined,
       updatedAt: Date.now(),
     });
   },

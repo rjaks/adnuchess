@@ -3,7 +3,7 @@ import { readBody, getQuery, getRouterParam } from 'h3'
 import { validateInput, safeValidate } from '~/server/utils/validation'
 import { errors } from '~/server/utils/errorHandler'
 import { log } from '~/server/utils/logger'
-import type { z } from 'zod'
+import { z } from 'zod'
 
 export interface ValidationOptions {
   body?: z.ZodSchema
@@ -134,47 +134,53 @@ export function withValidation<T = any>(options: ValidationOptions) {
 }
 
 /**
- * Common validation patterns for chess game endpoints
+ * Common validation helper functions for chess game endpoints
  */
-export const commonValidations = {
-  gameId: {
-    params: z.object({
-      id: z.string().min(1, 'Game ID is required')
-    })
-  },
-  
-  playerId: {
-    params: z.object({
-      id: z.string().min(1, 'Player ID is required')
-    })
-  },
-  
-  pagination: {
-    query: z.object({
-      page: z.coerce.number().min(1).default(1),
-      limit: z.coerce.number().min(1).max(100).default(20),
-      sort: z.enum(['asc', 'desc']).default('desc').optional()
-    })
-  },
-  
-  gameMove: {
-    body: z.object({
-      gameId: z.string().min(1),
-      move: z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/, 'Invalid move format'),
-      fen: z.string().regex(
-        /^([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+\s[bw]\s(-|[KQkq]+)\s(-|[a-h][3-6])\s\d+\s\d+$/,
-        'Invalid FEN string'
-      )
-    })
-  },
-  
-  matchmaking: {
-    body: z.object({
-      gameMode: z.enum(['blitz', 'rapid', 'classical', 'bullet']),
-      rating: z.number().min(100).max(3000).optional()
-    })
+
+// Create validation schemas dynamically to avoid export issues
+export function createCommonValidation(validationType: 'gameId' | 'playerId' | 'pagination' | 'gameMove' | 'matchmaking') {
+  switch (validationType) {
+    case 'gameId':
+      return {
+        params: z.object({
+          id: z.string().min(1, 'Game ID is required')
+        })
+      }
+    case 'playerId':
+      return {
+        params: z.object({
+          id: z.string().min(1, 'Player ID is required')
+        })
+      }
+    case 'pagination':
+      return {
+        query: z.object({
+          page: z.coerce.number().min(1).default(1),
+          limit: z.coerce.number().min(1).max(100).default(20),
+          sort: z.enum(['asc', 'desc']).default('desc').optional()
+        })
+      }
+    case 'gameMove':
+      return {
+        body: z.object({
+          gameId: z.string().min(1),
+          move: z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/, 'Invalid move format'),
+          fen: z.string().regex(
+            /^([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+\s[bw]\s(-|[KQkq]+)\s(-|[a-h][3-6])\s\d+\s\d+$/,
+            'Invalid FEN string'
+          )
+        })
+      }
+    case 'matchmaking':
+      return {
+        body: z.object({
+          gameMode: z.enum(['blitz', 'rapid', 'classical', 'bullet']),
+          rating: z.number().min(100).max(3000).optional()
+        })
+      }
+    default:
+      throw new Error(`Unknown validation type: ${validationType}`)
   }
 }
 
-// Re-export zod for convenience
-export { z } from 'zod'
+
