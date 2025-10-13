@@ -1,6 +1,9 @@
 import { createError, defineEventHandler, getCookie } from 'h3'
 import { useStorage } from '#imports'
 import { getUserSession } from '~/server/utils/sessionStore'
+import { log } from '~/server/utils/logger'
+import { rateLimitHelpers } from '~/server/utils/rateLimit'
+import { handleError, errors } from '~/server/utils/errorHandler'
 
 type QueuePlayer = {
   userId: string
@@ -26,17 +29,25 @@ type GameState = {
 }
 
 export default defineEventHandler(async (event) => {
-  const sessionId = getCookie(event, 'adnu_session')
-  if (!sessionId) {
-    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
-  }
-
-  const session = await getUserSession(sessionId)
-  if (!session) {
-    throw createError({ statusCode: 401, statusMessage: 'Session expired' })
-  }
-
   try {
+    // Rate limiting
+    const sessionId = getCookie(event, 'adnu_session')
+    if (!sessionId) {
+      throw errors.unauthorized()
+    }
+
+    const session = await getUserSession(sessionId)
+    if (!session) {
+      throw errors.sessionExpired()
+    }
+
+    // Apply rate limiting
+    await rateLimitHelpers.api(event, session.user.id)
+
+    log.info('Matchmaking status check', { 
+      userId: session.user.id,
+      userEmail: session.user.email 
+    })
     const storage = useStorage('matchmaking')
     const gameStorage = useStorage('chess-games')
     
@@ -69,7 +80,10 @@ export default defineEventHandler(async (event) => {
         }
       }
     } catch (error) {
-      console.warn('Failed to query Convex games, falling back to local storage:', error)
+      log.warn('Failed to query Convex games, falling back to local storage', {
+        userId: session.user.id,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       
       // Fallback to local storage for backward compatibility
       const gameKeys = await gameStorage.getKeys('game:')
@@ -102,10 +116,8 @@ export default defineEventHandler(async (event) => {
       queueTime: Date.now() - queueEntry.joinedAt
     }
   } catch (error) {
-    console.error('Failed to get queue status:', error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to get queue status'
+    handleError(error, event, { 
+      operation: 'get_matchmaking_status'
     })
   }
 })

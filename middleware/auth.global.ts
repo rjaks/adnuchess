@@ -45,6 +45,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       const { $convex } = useNuxtApp()
 
       try {
+        // First, ensure the profile exists in Convex
         await $convex.mutation(api.profiles.upsertFromSession, {
           userId: user.id,
           email: user.email,
@@ -52,15 +53,39 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
           picture: user.picture,
         })
 
+        // Then check if profile is complete
         const profile = await $convex.query(api.profiles.getByUserId, {
           userId: user.id,
         })
 
-        if (!profile?.role && to.path !== '/profile-setup') {
+        // Only redirect to profile setup if profile exists but role is missing
+        if (profile && !profile.role && to.path !== '/profile-setup') {
+          console.log('Redirecting to profile setup - missing role')
           return navigateTo('/profile-setup')
         }
       } catch (error) {
         console.error('Profile setup failed:', error)
+        
+        // If Convex is completely failing, let users through but log the issue
+        if (error instanceof Error) {
+          console.error('Convex error details:', {
+            message: error.message,
+            stack: error.stack,
+            userId: user.id,
+            email: user.email
+          })
+        }
+        
+        // In production, you might want to redirect to an error page or allow through
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('Convex unavailable in production, allowing user through')
+          // Don't block user navigation if Convex is down
+        } else {
+          // In development, still redirect to profile setup as fallback
+          if (to.path !== '/profile-setup') {
+            return navigateTo('/profile-setup')
+          }
+        }
       }
     }
   }

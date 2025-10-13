@@ -1,0 +1,17 @@
+{
+  "name": "deploy:production",
+  "version": "1.0.0",
+  "description": "Production deployment script for AdNU Chess",
+  "scripts": {
+    "deploy": "node scripts/deploy.js",
+    "health-check": "curl -f http://localhost:3000/api/health || exit 1",
+    "backup": "node scripts/backup.js",
+    "logs": "tail -f logs/combined.log",
+    "pm2:start": "pm2 start ecosystem.config.js --env production",
+    "pm2:stop": "pm2 stop adnu-chess",
+    "pm2:restart": "pm2 restart adnu-chess",
+    "pm2:status": "pm2 status",
+    "docker:build": "docker build -t adnu-chess .",
+    "docker:run": "docker run -d --name adnu-chess -p 3000:3000 --env-file .env.production adnu-chess"
+  }
+}
