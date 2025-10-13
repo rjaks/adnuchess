@@ -13,7 +13,8 @@ export default defineNuxtConfig({
       title: 'ADNU Chess Arena',
       meta: [
         { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'referrer', content: 'strict-origin-when-cross-origin' }
       ],
       link: [
         { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/adnuchesslogo.png' },
@@ -21,6 +22,13 @@ export default defineNuxtConfig({
         { rel: 'shortcut icon', href: '/adnuchesslogo.png' },
         { rel: 'apple-touch-icon', href: '/adnuchesslogo.png' },
         { rel: 'icon', href: '/favicon.ico' }
+      ],
+      script: [
+        {
+          src: 'https://accounts.google.com/gsi/client',
+          async: true,
+          defer: true
+        }
       ]
     }
   },
@@ -37,6 +45,14 @@ export default defineNuxtConfig({
     externals: {
       inline: ['google-auth-library'],
     },
+    routeRules: {
+      '/api/**': {
+        headers: {
+          'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+          'Cross-Origin-Embedder-Policy': 'unsafe-none'
+        }
+      }
+    }
   },
   // Ensure proper hydration without mismatches
   experimental: {

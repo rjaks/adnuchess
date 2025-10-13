@@ -327,9 +327,14 @@ import { navigateTo, useFetch, useRoute } from '#imports'
 import { useAuth } from '~/composables/useAuth'
 import type { AuthUser } from '~/composables/useAuth'
 
-// Set favicon for all pages
+// Set favicon and COOP headers for all pages
 useHead({
   title: 'ADNU Chess Arena',
+  meta: [
+    { name: 'referrer', content: 'strict-origin-when-cross-origin' },
+    { 'http-equiv': 'Cross-Origin-Opener-Policy', content: 'same-origin-allow-popups' },
+    { 'http-equiv': 'Cross-Origin-Embedder-Policy', content: 'unsafe-none' }
+  ],
   link: [
     { rel: 'icon', type: 'image/png', href: '/adnuchesslogo.png' },
     { rel: 'shortcut icon', href: '/adnuchesslogo.png' },

@@ -11,14 +11,48 @@
 
     <div class="space-y-6">
       <div ref="buttonEl" class="flex items-center justify-center"></div>
+      
+      <!-- Retry button for production errors -->
+      <div v-if="showRetryButton" class="flex flex-col items-center space-y-3">
+        <button 
+          @click="retryAuth"
+          :disabled="isRetrying"
+          class="px-6 py-2 bg-[#021d94] text-white rounded-lg hover:bg-[#021d94]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {{ isRetrying ? 'Retrying...' : 'Retry Sign-In' }}
+        </button>
+        <button 
+          @click="clearCacheAndRetry"
+          :disabled="isRetrying"
+          class="px-4 py-1 text-xs bg-slate-200 text-slate-700 rounded hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Clear Cache & Retry
+        </button>
+      </div>
+
       <p v-if="status.message" :class="statusClass" class="text-center text-sm font-medium">
         {{ status.message }}
       </p>
+
+      <!-- Debug info for troubleshooting -->
+      <div v-if="showDebugInfo" class="mt-4 p-3 bg-slate-100 rounded-lg text-xs text-slate-600">
+        <p><strong>Debug Info:</strong></p>
+        <p>Domain: {{ currentDomain }}</p>
+        <p>Environment: {{ isProduction ? 'Production' : 'Development' }}</p>
+        <p>Client ID: {{ clientId ? 'Present' : 'Missing' }}</p>
+        <p>Retry Count: {{ retryCount }}/{{ maxRetries }}</p>
+      </div>
     </div>
 
-    <p class="text-center text-xs text-slate-500">
-      Having trouble? Make sure you are logged into Google with your campus email before returning here.
-    </p>
+    <div class="space-y-2 text-center text-xs text-slate-500">
+      <p>Having trouble? Make sure you are logged into Google with your campus email before returning here.</p>
+      <button 
+        @click="showDebugInfo = !showDebugInfo"
+        class="text-[#021d94] hover:underline"
+      >
+        {{ showDebugInfo ? 'Hide' : 'Show' }} Debug Info
+      </button>
+    </div>
   </section>
 </template>
 
@@ -29,7 +63,18 @@ import { useAuth } from '~/composables/useAuth'
 
 declare global {
   interface Window {
-    google?: any
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (config: any) => void
+          prompt: (callback?: ((notification: any) => void) | undefined) => void
+          renderButton: (element: HTMLElement, config: any) => void
+          disableAutoSelect: () => void
+          storeCredential: (credential: any) => void
+          cancel: () => void
+        }
+      }
+    }
   }
 }
 
@@ -78,6 +123,23 @@ const status = ref<{ message: string | null; type: 'info' | 'error' | 'success' 
   type: clientId ? 'info' : 'error',
 })
 
+// Retry and debug functionality
+const showRetryButton = ref(false)
+const isRetrying = ref(false)
+const showDebugInfo = ref(false)
+const retryCount = ref(0)
+const maxRetries = ref(3)
+
+// Environment and domain info
+const currentDomain = ref('')
+const isProduction = ref(false)
+
+// Initialize environment info
+if (process.client) {
+  currentDomain.value = window.location.origin
+  isProduction.value = !currentDomain.value.includes('localhost')
+}
+
 const statusClass = computed(() => {
   switch (status.value.type) {
     case 'error':
@@ -117,6 +179,7 @@ const ensureScript = () => {
 const handleGoogleCredential = async ({ credential }: GoogleIdentityCredential) => {
   if (!credential) {
     status.value = { message: 'No credential received from Google.', type: 'error' }
+    showRetryButton.value = true
     return
   }
 
@@ -130,13 +193,86 @@ const handleGoogleCredential = async ({ credential }: GoogleIdentityCredential) 
         : 'Signed in successfully! Redirecting...',
       type: 'success',
     }
+    showRetryButton.value = false
     await navigateTo(destination)
   } catch (error: any) {
-    console.error('Google login failed', error)
-    status.value = {
-      message: error?.data?.statusMessage || 'Sign-in failed. Make sure you are using your gbox email.',
-      type: 'error',
+    console.error('🚨 Google login failed:', error)
+    
+    // Show retry button for production errors or after multiple attempts
+    if (isProduction.value || retryCount.value > 0) {
+      showRetryButton.value = true
     }
+    
+    // Handle specific production errors
+    const errorMsg = error?.data?.statusMessage || error?.message || 'Sign-in failed'
+    if (errorMsg.includes('token') || errorMsg.includes('aborted') || errorMsg.includes('origin')) {
+      status.value = {
+        message: 'Authentication temporarily unavailable. Please try again in a moment.',
+        type: 'error',
+      }
+      showRetryButton.value = true
+    } else {
+      status.value = {
+        message: 'Sign-in failed. Make sure you are using your gbox email.',
+        type: 'error',
+      }
+    }
+  }
+}
+
+// Retry authentication
+const retryAuth = async () => {
+  if (isRetrying.value || retryCount.value >= maxRetries.value) return
+  
+  isRetrying.value = true
+  retryCount.value++
+  
+  try {
+    status.value = { message: `Retrying authentication... (${retryCount.value}/${maxRetries.value})`, type: 'info' }
+    await initGoogle()
+  } catch (error) {
+    console.error('🔄 Retry failed:', error)
+    if (retryCount.value >= maxRetries.value) {
+      status.value = { 
+        message: 'Max retries reached. Please refresh the page or try again later.', 
+        type: 'error' 
+      }
+      showRetryButton.value = false
+    }
+  } finally {
+    isRetrying.value = false
+  }
+}
+
+// Clear cache and retry
+const clearCacheAndRetry = async () => {
+  if (isRetrying.value) return
+  
+  isRetrying.value = true
+  
+  try {
+    // Clear Google account selection cache
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.cancel()
+    }
+    
+    // Reset retry count
+    retryCount.value = 0
+    
+    status.value = { message: 'Clearing cache and retrying...', type: 'info' }
+    
+    // Wait a moment for cache to clear
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    await initGoogle()
+  } catch (error) {
+    console.error('🧹 Clear cache failed:', error)
+    status.value = { 
+      message: 'Failed to clear cache. Please refresh the page manually.', 
+      type: 'error' 
+    }
+  } finally {
+    isRetrying.value = false
   }
 }
 
@@ -146,18 +282,32 @@ const initGoogle = async () => {
       message: 'Missing Google client ID. Update GOOGLE_CLIENT_ID env and restart.',
       type: 'error',
     }
+    showRetryButton.value = true
     return
   }
 
   try {
+    console.log('🔐 Initializing Google Sign-In...')
     await ensureScript()
+    
+    if (!window.google?.accounts?.id) {
+      throw new Error('Google Identity Services not available')
+    }
+    
     const googleIdentity = window.google as unknown as GoogleIdentity
+    
+    // Enhanced initialization with production error handling
     googleIdentity.accounts.id.initialize({
       client_id: clientId,
       hosted_domain: 'gbox.adnu.edu.ph',
       callback: handleGoogleCredential,
+      ux_mode: 'popup', // Force popup mode for better error handling
     })
+    
     if (buttonEl.value) {
+      // Clear any existing button content
+      buttonEl.value.innerHTML = ''
+      
       googleIdentity.accounts.id.renderButton(buttonEl.value, {
         type: 'standard',
         theme: 'outline',
@@ -165,15 +315,39 @@ const initGoogle = async () => {
         text: 'signin_with',
         shape: 'pill',
         logo_alignment: 'center',
+        width: 250,
       })
     }
-    googleIdentity.accounts.id.prompt()
+    
+    // Only prompt if this is the initial load (not a retry)
+    if (retryCount.value === 0) {
+      googleIdentity.accounts.id.prompt()
+    }
+    
     if (!status.value.message?.startsWith('Welcome')) {
       status.value = { message: 'Awaiting Google authentication...', type: 'info' }
     }
-  } catch (error) {
-    console.error(error)
-    status.value = { message: 'Unable to load Google sign-in at the moment.', type: 'error' }
+    
+    console.log('✅ Google Sign-In initialized successfully')
+  } catch (error: any) {
+    console.error('🚨 Google Sign-In initialization failed:', error)
+    
+    const errorMsg = error?.message || 'Unknown error'
+    
+    if (errorMsg.includes('origin') || errorMsg.includes('token') || errorMsg.includes('aborted')) {
+      status.value = { 
+        message: 'Authentication service temporarily unavailable. This may be due to domain configuration.', 
+        type: 'error' 
+      }
+      showRetryButton.value = true
+      showDebugInfo.value = isProduction.value // Show debug info in production for troubleshooting
+    } else {
+      status.value = { 
+        message: 'Unable to load Google sign-in at the moment. Please try again.', 
+        type: 'error' 
+      }
+      showRetryButton.value = true
+    }
   }
 }
 
