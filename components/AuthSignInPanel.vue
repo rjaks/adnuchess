@@ -10,10 +10,34 @@
     </header>
 
     <div class="space-y-6">
-      <div ref="buttonEl" class="flex items-center justify-center"></div>
+      <!-- Google Sign-in Button (hidden during cooldown) -->
+      <div v-if="!cooldownActive" ref="buttonEl" class="flex items-center justify-center min-h-[44px]"></div>
       
-      <!-- Retry button for production errors -->
-      <div v-if="showRetryButton" class="flex flex-col items-center space-y-3">
+      <!-- Cooldown Warning -->
+      <div v-if="cooldownActive" class="p-4 bg-amber-50 border-l-4 border-amber-400 rounded">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-amber-800">
+              Authentication Temporarily Unavailable
+            </h3>
+            <p class="mt-1 text-sm text-amber-700">
+              Google has temporarily blocked sign-in attempts due to multiple dismissals. 
+              Please wait {{ Math.ceil(cooldownTimeRemaining / 60) }} minute{{ Math.ceil(cooldownTimeRemaining / 60) !== 1 ? 's' : '' }} before trying again.
+            </p>
+            <p class="mt-2 text-xs text-amber-600">
+              💡 Tip: Don't dismiss the Google sign-in popup to avoid this cooldown.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Retry buttons -->
+      <div v-if="showRetryButton && !cooldownActive" class="flex flex-col items-center space-y-3">
         <button 
           @click="retryAuth"
           :disabled="isRetrying"
@@ -26,7 +50,7 @@
           :disabled="isRetrying"
           class="px-4 py-1 text-xs bg-slate-200 text-slate-700 rounded hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Clear Cache & Retry
+          Clear Cache & Reset Cooldown
         </button>
       </div>
 
@@ -41,11 +65,15 @@
         <p>Environment: {{ isProduction ? 'Production' : 'Development' }}</p>
         <p>Client ID: {{ clientId ? 'Present' : 'Missing' }}</p>
         <p>Retry Count: {{ retryCount }}/{{ maxRetries }}</p>
+        <p>Dismissal Count: {{ dismissalCount }}/3</p>
+        <p>Cooldown Active: {{ cooldownActive ? 'Yes' : 'No' }}</p>
+        <p v-if="cooldownActive">Time Remaining: {{ cooldownTimeRemaining }}s</p>
       </div>
     </div>
 
     <div class="space-y-2 text-center text-xs text-slate-500">
       <p>Having trouble? Make sure you are logged into Google with your campus email before returning here.</p>
+      <p><strong>Important:</strong> Don't dismiss the Google sign-in popup to avoid temporary blocks.</p>
       <button 
         @click="showDebugInfo = !showDebugInfo"
         class="text-[#021d94] hover:underline"
@@ -118,7 +146,7 @@ const clientId = config.public.googleClientId
 const { user, loginWithCredential } = useAuth()
 const buttonEl = ref<HTMLDivElement | null>(null)
 
-const status = ref<{ message: string | null; type: 'info' | 'error' | 'success' }>({
+const status = ref<{ message: string | null; type: 'info' | 'error' | 'success' | 'warning' }>({
   message: clientId ? 'Loading secure Google sign-in...' : 'Google client ID is missing in configuration.',
   type: clientId ? 'info' : 'error',
 })
@@ -129,6 +157,12 @@ const isRetrying = ref(false)
 const showDebugInfo = ref(false)
 const retryCount = ref(0)
 const maxRetries = ref(3)
+
+// Cooldown handling for Google OAuth dismissals
+const cooldownActive = ref(false)
+const cooldownTimeRemaining = ref(0)
+const dismissalCount = ref(0)
+const lastDismissalTime = ref(0)
 
 // Environment and domain info
 const currentDomain = ref('')
@@ -146,10 +180,47 @@ const statusClass = computed(() => {
       return 'text-[#b00020]'
     case 'success':
       return 'text-[#056839]'
+    case 'warning':
+      return 'text-amber-600'
     default:
       return 'text-[#021d94]'
   }
 })
+
+// Handle Google OAuth cooldown errors
+const handleCooldownError = () => {
+  cooldownActive.value = true
+  
+  // Google's exponential cooldown: 2, 4, 8, 16 minutes
+  const cooldownDuration = Math.min(Math.pow(2, dismissalCount.value) * 60000, 16 * 60000)
+  cooldownTimeRemaining.value = Math.ceil(cooldownDuration / 1000)
+  
+  status.value = {
+    message: `Google authentication is temporarily blocked due to multiple dismissals. Please wait ${Math.ceil(cooldownTimeRemaining.value / 60)} minutes before trying again.`,
+    type: 'warning'
+  }
+  
+  // Countdown timer
+  const countdownInterval = setInterval(() => {
+    cooldownTimeRemaining.value--
+    
+    if (cooldownTimeRemaining.value <= 0) {
+      clearInterval(countdownInterval)
+      cooldownActive.value = false
+      dismissalCount.value = 0
+      status.value = {
+        message: 'You can now try signing in again.',
+        type: 'info'
+      }
+    } else {
+      const minutes = Math.ceil(cooldownTimeRemaining.value / 60)
+      status.value = {
+        message: `Google authentication cooldown active. Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`,
+        type: 'warning'
+      }
+    }
+  }, 1000)
+}
 
 const ensureScript = () => {
   if (window.google?.accounts?.id) {
@@ -222,6 +293,14 @@ const handleGoogleCredential = async ({ credential }: GoogleIdentityCredential) 
 
 // Retry authentication
 const retryAuth = async () => {
+  if (cooldownActive.value) {
+    status.value = {
+      message: `Please wait ${Math.ceil(cooldownTimeRemaining.value / 60)} more minutes before retrying.`,
+      type: 'warning'
+    }
+    return
+  }
+  
   if (isRetrying.value || retryCount.value >= maxRetries.value) return
   
   isRetrying.value = true
@@ -256,10 +335,27 @@ const clearCacheAndRetry = async () => {
       window.google.accounts.id.cancel()
     }
     
+    // Reset cooldown state
+    cooldownActive.value = false
+    cooldownTimeRemaining.value = 0
+    dismissalCount.value = 0
+    
     // Reset retry count
     retryCount.value = 0
     
-    status.value = { message: 'Clearing cache and retrying...', type: 'info' }
+    // Clear relevant localStorage
+    if (process.client) {
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && (key.includes('google') || key.includes('oauth') || key.includes('gsi'))) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    }
+    
+    status.value = { message: 'Cache cleared and cooldown reset. Retrying...', type: 'info' }
     
     // Wait a moment for cache to clear
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -283,6 +379,11 @@ const initGoogle = async () => {
       type: 'error',
     }
     showRetryButton.value = true
+    return
+  }
+
+  // Check if we're in cooldown period
+  if (cooldownActive.value) {
     return
   }
 
@@ -319,12 +420,42 @@ const initGoogle = async () => {
       })
     }
     
-    // Only prompt if this is the initial load (not a retry)
+    // Enhanced prompt with cooldown detection
     if (retryCount.value === 0) {
-      googleIdentity.accounts.id.prompt()
+      googleIdentity.accounts.id.prompt((notification: any) => {
+        console.log('📝 Google prompt notification:', notification)
+        
+        // Detect dismissal or cooldown
+        if (notification.isDismissedMoment?.()) {
+          dismissalCount.value++
+          lastDismissalTime.value = Date.now()
+          console.warn('⚠️ User dismissed Google prompt', dismissalCount.value)
+          
+          // Check if we've hit the dismissal threshold
+          if (dismissalCount.value >= 3) {
+            console.warn('🚫 Multiple dismissals detected, cooldown triggered')
+            handleCooldownError()
+          } else {
+            status.value = {
+              message: `Sign-in cancelled. ${3 - dismissalCount.value} more dismissals will trigger a temporary cooldown.`,
+              type: 'warning'
+            }
+          }
+        } else if (notification.isNotDisplayed?.()) {
+          console.warn('⚠️ Google popup blocked')
+          status.value = { 
+            message: 'Pop-up blocked. Please allow pop-ups for this site and try again.', 
+            type: 'warning' 
+          }
+          showRetryButton.value = true
+        } else if (notification.isSkippedMoment?.()) {
+          console.log('ℹ️ Google prompt skipped')
+          status.value = { message: 'Ready to sign in with Google.', type: 'info' }
+        }
+      })
     }
     
-    if (!status.value.message?.startsWith('Welcome')) {
+    if (!status.value.message?.startsWith('Welcome') && !cooldownActive.value) {
       status.value = { message: 'Awaiting Google authentication...', type: 'info' }
     }
     
@@ -334,13 +465,20 @@ const initGoogle = async () => {
     
     const errorMsg = error?.message || 'Unknown error'
     
+    // Check if error indicates cooldown
+    if (errorMsg.includes('cool down') || errorMsg.includes('declined') || errorMsg.includes('dismissed')) {
+      console.warn('🚫 Cooldown error detected:', errorMsg)
+      handleCooldownError()
+      return
+    }
+    
     if (errorMsg.includes('origin') || errorMsg.includes('token') || errorMsg.includes('aborted')) {
       status.value = { 
         message: 'Authentication service temporarily unavailable. This may be due to domain configuration.', 
         type: 'error' 
       }
       showRetryButton.value = true
-      showDebugInfo.value = isProduction.value // Show debug info in production for troubleshooting
+      showDebugInfo.value = isProduction.value
     } else {
       status.value = { 
         message: 'Unable to load Google sign-in at the moment. Please try again.', 

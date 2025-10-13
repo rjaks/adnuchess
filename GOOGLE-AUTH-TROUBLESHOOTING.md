@@ -36,6 +36,33 @@ This guide helps resolve Google Sign-In OAuth authentication issues in the AdNU 
 - ✅ Added cache clearing functionality
 - ✅ Enhanced error messages with production-specific guidance
 
+### 4. "User declined or dismissed prompt. API exponential cool down triggered"
+
+**Problem**: Users dismissed the Google sign-in popup multiple times, triggering Google's rate limiting.
+
+**What happens**: 
+- Google blocks authentication attempts for 2, 4, 8, or 16 minutes
+- Each dismissal increases the cooldown duration exponentially
+- This is a Google security feature to prevent spam/abuse
+
+**Solutions Applied**:
+- ✅ **Cooldown Detection**: Automatic detection of dismissal patterns
+- ✅ **Timer Display**: Shows remaining cooldown time with countdown
+- ✅ **User Education**: Clear messaging about not dismissing popups
+- ✅ **Cache Reset**: Button to clear OAuth cache and reset cooldown state
+- ✅ **Debug Info**: Shows dismissal count and cooldown status
+
+**Prevention**:
+- Add clear instructions not to dismiss the Google popup
+- Implement user education tooltips
+- Monitor dismissal patterns in debug info
+- Provide alternative authentication guidance
+
+**Manual Reset**:
+- Use "Clear Cache & Reset Cooldown" button
+- Wait for the cooldown period to expire naturally
+- Refresh the page as a last resort
+
 ## Current Configuration
 
 ### Environment Variables
