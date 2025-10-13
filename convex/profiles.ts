@@ -114,6 +114,102 @@ export const updateDisplayName = mutation({
   },
 });
 
+export const updateDepartment = mutation({
+  args: {
+    userId: v.string(),
+    department: v.union(v.string(), v.null()),
+    skipCooldownCheck: v.optional(v.boolean()), // For admin override if needed
+  },
+  handler: async (ctx, { userId, department, skipCooldownCheck = false }) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!profile) throw new Error("Profile not found");
+
+    const now = Date.now();
+    const oneYearInMs = 365 * 24 * 60 * 60 * 1000; // 1 year in milliseconds
+    
+    // Check if user is trying to change to a different department
+    const normalizedNewDept = department && department.trim() !== "" ? department.trim() : undefined;
+    const isDepartmentChanging = profile.department !== normalizedNewDept;
+    
+    // Check cooldown period if department is actually changing
+    if (isDepartmentChanging && !skipCooldownCheck && profile.departmentLastChanged) {
+      const timeSinceLastChange = now - profile.departmentLastChanged;
+      const remainingCooldown = oneYearInMs - timeSinceLastChange;
+      
+      if (remainingCooldown > 0) {
+        // Calculate remaining days for user-friendly error
+        const remainingDays = Math.ceil(remainingCooldown / (24 * 60 * 60 * 1000));
+        throw new Error(`Department can only be changed once per year. You can change your department again in ${remainingDays} days.`);
+      }
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      department: normalizedNewDept,
+      updatedAt: now,
+    };
+
+    // Only update departmentLastChanged if department is actually changing
+    if (isDepartmentChanging) {
+      updateData.departmentLastChanged = now;
+    }
+
+    await ctx.db.patch(profile._id, updateData);
+    return { 
+      success: true,
+      departmentChanged: isDepartmentChanging,
+      nextChangeAvailable: isDepartmentChanging ? now + oneYearInMs : (profile.departmentLastChanged || 0) + oneYearInMs
+    };
+  },
+});
+
+export const checkDepartmentCooldown = query({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!profile) throw new Error("Profile not found");
+
+    const now = Date.now();
+    const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+    
+    if (!profile.departmentLastChanged) {
+      return { 
+        canChange: true,
+        remainingDays: 0,
+        nextChangeDate: null
+      };
+    }
+
+    const timeSinceLastChange = now - profile.departmentLastChanged;
+    const remainingCooldown = oneYearInMs - timeSinceLastChange;
+    
+    if (remainingCooldown <= 0) {
+      return { 
+        canChange: true,
+        remainingDays: 0,
+        nextChangeDate: null
+      };
+    }
+
+    const remainingDays = Math.ceil(remainingCooldown / (24 * 60 * 60 * 1000));
+    const nextChangeDate = new Date(profile.departmentLastChanged + oneYearInMs);
+    
+    return { 
+      canChange: false,
+      remainingDays,
+      nextChangeDate: nextChangeDate.toLocaleDateString()
+    };
+  },
+});
+
 export const getAllProfiles = query({
   args: {},
   handler: async (ctx) => {

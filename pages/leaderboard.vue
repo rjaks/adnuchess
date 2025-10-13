@@ -172,11 +172,12 @@
         <div 
           v-for="(player, index) in topThree" 
           :key="player.id"
+          @click="navigateToProfile(player.id)"
           :class="[
-            'rounded-3xl border p-6 text-center relative overflow-hidden',
-            index === 0 ? 'border-yellow-300/50 bg-gradient-to-br from-yellow-50 to-yellow-100' :
-            index === 1 ? 'border-gray-300/50 bg-gradient-to-br from-gray-50 to-gray-100' :
-            'border-amber-300/50 bg-gradient-to-br from-amber-50 to-amber-100'
+            'rounded-3xl border p-6 text-center relative overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-lg active:scale-95 group',
+            index === 0 ? 'border-yellow-300/50 bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200' :
+            index === 1 ? 'border-gray-300/50 bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200' :
+            'border-amber-300/50 bg-gradient-to-br from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200'
           ]"
         >
           <!-- Trophy Icon -->
@@ -196,9 +197,12 @@
           </div>
           
           <!-- Player Info -->
-          <h3 class="font-bold text-slate-900 mb-1">{{ player.name }}</h3>
+          <h3 class="font-bold text-slate-900 mb-1 hover:text-[#021d94] transition-colors group-hover:underline">{{ player.name }}</h3>
           <div class="flex items-center justify-center gap-1 mb-1">
             <p class="text-xs text-slate-500 uppercase tracking-wide">{{ player.department }}</p>
+          </div>
+          <div class="text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+            Click to view profile
           </div>
           <div class="flex items-center justify-center gap-1 mb-3">              <span 
                 :class="[
@@ -255,7 +259,9 @@
             <tr 
               v-for="(player, index) in rankedPlayers" 
               :key="player.id"
-              class="hover:bg-white/30 transition-colors"
+              @click="navigateToProfile(player.id)"
+              class="hover:bg-white/30 transition-colors cursor-pointer group"
+              title="Click to view profile"
             >
               <!-- Rank -->
               <td class="px-6 py-4 whitespace-nowrap">
@@ -284,7 +290,12 @@
                     <span v-else class="text-sm font-semibold text-slate-600">{{ player.name.charAt(0) }}</span>
                   </div>
                   <div>
-                    <div class="font-semibold text-slate-900">{{ player.name }}</div>
+                    <div class="font-semibold text-slate-900 hover:text-[#021d94] transition-colors flex items-center gap-1">
+                      {{ player.name }}
+                      <svg class="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                      </svg>
+                    </div>
                     <div class="flex items-center gap-2 mt-0.5">
                       <div class="text-xs text-slate-500 uppercase tracking-wide">{{ player.department }}</div>
                       <span 
@@ -529,6 +540,10 @@ const userTypesWithCounts = computed(() => {
 // Add computed win rate to players - removed unused computed
 
 // Methods
+const navigateToProfile = (playerId: string) => {
+  navigateTo(`/profile/${playerId}`)
+}
+
 const loadLeaderboard = async () => {
   loading.value = true
   try {
