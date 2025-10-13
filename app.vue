@@ -327,6 +327,16 @@ import { navigateTo, useFetch, useRoute } from '#imports'
 import { useAuth } from '~/composables/useAuth'
 import type { AuthUser } from '~/composables/useAuth'
 
+// Set favicon for all pages
+useHead({
+  title: 'ADNU Chess Arena',
+  link: [
+    { rel: 'icon', type: 'image/png', href: '/adnuchesslogo.png' },
+    { rel: 'shortcut icon', href: '/adnuchesslogo.png' },
+    { rel: 'apple-touch-icon', href: '/adnuchesslogo.png' }
+  ]
+})
+
 type NavigationItem = {
   label: string
   to: string

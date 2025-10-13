@@ -8,6 +8,22 @@ export default defineNuxtConfig({
   css: [],
   compatibilityDate: '2025-09-19',
   ssr: true,
+  app: {
+    head: {
+      title: 'ADNU Chess Arena',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/adnuchesslogo.png' },
+        { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/adnuchesslogo.png' },
+        { rel: 'shortcut icon', href: '/adnuchesslogo.png' },
+        { rel: 'apple-touch-icon', href: '/adnuchesslogo.png' },
+        { rel: 'icon', href: '/favicon.ico' }
+      ]
+    }
+  },
   runtimeConfig: {
     googleClientId,
     sessionTtlDays,
