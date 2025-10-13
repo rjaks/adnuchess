@@ -290,8 +290,13 @@ const fetchPlayerProfile = async () => {
     loading.value = true
     error.value = ''
     
-    const response: any = await $fetch(`/api/players/${playerId}`)
-    playerProfile.value = response
+    const response = await $fetch(`/api/players/${playerId}`)
+    // Check if the response is a player profile (has 'id' and 'name')
+    if (response && typeof response === 'object' && 'id' in response && 'name' in response) {
+      playerProfile.value = response
+    } else {
+      throw new Error('Profile not found')
+    }
   } catch (err: any) {
     error.value = err.data?.message || 'Failed to load player profile'
     playerProfile.value = null
