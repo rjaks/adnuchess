@@ -197,9 +197,24 @@ const initializeProfile = async () => {
       return
     }
 
-    console.log('🔍 Checking existing profile...')
+    console.log('🔍 Ensuring profile exists and checking existing data...')
     
-    // Try to get existing profile with error handling
+    // First, ensure the profile exists by calling upsertFromSession
+    try {
+      await $convex.mutation(api.profiles.upsertFromSession, {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+      })
+      console.log('✅ Profile upserted successfully')
+    } catch (upsertError) {
+      console.error('❌ Error upserting profile:', upsertError)
+      error.value = 'Unable to initialize profile data. Please try refreshing the page.'
+      return
+    }
+    
+    // Now try to get existing profile with error handling
     let existingProfile = null
     try {
       existingProfile = await $convex.query(api.profiles.getByUserId, { 

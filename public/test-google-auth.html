@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="unsafe-none">
+    <title>Google Auth COOP Test</title>
+</head>
+<body>
+    <h1>Google Authentication COOP/COEP Test</h1>
+    <div id="buttonDiv"></div>
+    
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        function initializeGoogleSignIn() {
+            if (window.google?.accounts?.id) {
+                window.google.accounts.id.initialize({
+                    client_id: 'your-google-client-id',
+                    callback: handleCredentialResponse,
+                    use_fedcm_for_prompt: false,
+                    itp_support: true,
+                    ux_mode: 'popup'
+                });
+                
+                window.google.accounts.id.renderButton(
+                    document.getElementById("buttonDiv"),
+                    { theme: "outline", size: "large" }
+                );
+                
+                console.log('Google Sign-In initialized successfully');
+            } else {
+                setTimeout(initializeGoogleSignIn, 100);
+            }
+        }
+        
+        function handleCredentialResponse(response) {
+            console.log('Credential received:', response);
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', initializeGoogleSignIn);
+    </script>
+</body>
+</html>
