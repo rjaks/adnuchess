@@ -214,21 +214,32 @@ const initializeProfile = async () => {
       return
     }
     
-    // Now try to get existing profile with error handling
-    let existingProfile = null
+    // Check if profile is already complete
+    let profileCheck = null
     try {
-      existingProfile = await $convex.query(api.profiles.getByUserId, { 
+      profileCheck = await $convex.query(api.profiles.isProfileComplete, { 
         userId: user.id 
       })
-      console.log('📋 Existing profile:', existingProfile ? 'Found' : 'Not found')
-      debugInfo.value.hasProfile = !!existingProfile
+      console.log('📋 Profile status:', {
+        isComplete: profileCheck.isComplete,
+        missingFields: profileCheck.missingFields
+      })
+      debugInfo.value.hasProfile = !!profileCheck.profile
+      
+      // If profile is already complete, redirect to home
+      if (profileCheck.isComplete) {
+        console.log('✅ Profile already complete, redirecting to home')
+        await navigateTo('/')
+        return
+      }
     } catch (profileError) {
-      console.error('❌ Error fetching profile:', profileError)
+      console.error('❌ Error checking profile status:', profileError)
       error.value = 'Unable to load profile data. Please try refreshing the page.'
       return
     }
     
     // Pre-fill form with existing data or user defaults
+    const existingProfile = profileCheck.profile
     name.value = (existingProfile?.name as string) ?? user.name ?? ''
     displayName.value = (existingProfile?.displayName as string) ?? ''
     department.value = (existingProfile?.department as string) ?? ''

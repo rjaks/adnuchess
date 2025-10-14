@@ -93,4 +93,76 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_puzzle_user", ["puzzleId", "userId"])
     .index("by_submittedAt", ["submittedAt"]),
+
+  // QuizMania Tables
+  quizQuestions: defineTable({
+    question: v.string(),
+    category: v.union(
+      v.literal("openings"),
+      v.literal("endgames"), 
+      v.literal("tactics"),
+      v.literal("history"),
+      v.literal("rules"),
+      v.literal("famous-games"),
+      v.literal("theory")
+    ),
+    difficulty: v.union(v.literal("beginner"), v.literal("intermediate"), v.literal("advanced")),
+    options: v.array(v.string()), // Multiple choice options
+    correctAnswer: v.number(), // Index of correct option (0-based)
+    explanation: v.optional(v.string()),
+    timeLimit: v.number(), // Seconds allowed to answer
+    points: v.number(), // Points awarded for correct answer
+    createdBy: v.string(), // Admin who created the question
+    createdAt: v.number(),
+    isActive: v.boolean(),
+  })
+    .index("by_category", ["category"])
+    .index("by_difficulty", ["difficulty"])
+    .index("by_category_difficulty", ["category", "difficulty"])
+    .index("by_isActive", ["isActive"]),
+
+  quizSessions: defineTable({
+    userId: v.string(),
+    gameMode: v.union(v.literal("practice"), v.literal("timed"), v.literal("challenge")),
+    category: v.optional(v.string()), // Specific category or "mixed"
+    difficulty: v.optional(v.string()), // Specific difficulty or "mixed"
+    status: v.union(v.literal("active"), v.literal("completed"), v.literal("abandoned")),
+    currentQuestionIndex: v.number(),
+    questions: v.array(v.id("quizQuestions")), // Array of question IDs
+    answers: v.array(v.object({
+      questionId: v.id("quizQuestions"),
+      userAnswer: v.optional(v.number()), // User's selected option index
+      isCorrect: v.boolean(),
+      timeSpent: v.number(), // Milliseconds
+      pointsEarned: v.number(),
+    })),
+    totalScore: v.number(),
+    totalQuestions: v.number(),
+    correctAnswers: v.number(),
+    timeRemaining: v.optional(v.number()), // For timed modes
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_gameMode", ["gameMode"]),
+
+  quizLeaderboard: defineTable({
+    userId: v.string(),
+    category: v.string(),
+    difficulty: v.string(),
+    bestScore: v.number(),
+    bestAccuracy: v.number(), // Percentage
+    totalQuestions: v.number(),
+    totalCorrect: v.number(),
+    averageTime: v.number(), // Average seconds per question
+    gamesPlayed: v.number(),
+    lastPlayed: v.number(),
+    rank: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_category", ["category"])
+    .index("by_category_difficulty", ["category", "difficulty"])
+    .index("by_bestScore", ["bestScore"])
+    .index("by_bestAccuracy", ["bestAccuracy"]),
 });

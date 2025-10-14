@@ -58,22 +58,22 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
           picture: user.picture,
         })
 
-        const profile = await $convex.query(api.profiles.getByUserId, {
+        const profileCheck = await $convex.query(api.profiles.isProfileComplete, {
           userId: user.id,
         })
-
-        // Only redirect to profile setup if profile is incomplete
-        if (!profile?.role) {
+        
+        if (!profileCheck.isComplete) {
           console.log('🔄 Middleware: Redirecting to profile setup (incomplete profile)', { 
             from: to.path, 
             userId: user.id,
-            hasRole: !!profile?.role 
+            missingFields: profileCheck.missingFields,
+            isComplete: profileCheck.isComplete
           })
           return navigateTo('/profile-setup')
         } else {
           console.log('✅ Middleware: Profile complete, allowing navigation', {
             to: to.path,
-            hasRole: !!profile?.role
+            isComplete: profileCheck.isComplete
           })
         }
       } catch (error) {

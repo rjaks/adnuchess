@@ -224,3 +224,23 @@ export const getAllProfiles = query({
     return profiles.sort((a, b) => b.elo - a.elo);
   },
 });
+
+export const isProfileComplete = query({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+    
+    // Profile is complete if it has both role and department
+    return {
+      isComplete: !!(profile?.role && profile?.department),
+      profile: profile,
+      missingFields: {
+        role: !profile?.role,
+        department: !profile?.department
+      }
+    };
+  },
+});

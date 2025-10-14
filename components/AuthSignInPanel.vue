@@ -610,41 +610,6 @@ const initGoogle = async () => {
       })
     }
     
-    // Enhanced prompt with cooldown detection
-    if (retryCount.value === 0) {
-      googleIdentity.accounts.id.prompt((notification: any) => {
-        console.log('📝 Google prompt notification:', notification)
-        
-        // Detect dismissal or cooldown
-        if (notification.isDismissedMoment?.()) {
-          dismissalCount.value++
-          lastDismissalTime.value = Date.now()
-          console.warn('⚠️ User dismissed Google prompt', dismissalCount.value)
-          
-          // Check if we've hit the dismissal threshold
-          if (dismissalCount.value >= 3) {
-            console.warn('🚫 Multiple dismissals detected, cooldown triggered')
-            handleCooldownError()
-          } else {
-            status.value = {
-              message: `Sign-in cancelled. ${3 - dismissalCount.value} more dismissals will trigger a temporary cooldown.`,
-              type: 'warning'
-            }
-          }
-        } else if (notification.isNotDisplayed?.()) {
-          console.warn('⚠️ Google popup blocked')
-          status.value = { 
-            message: 'Pop-up blocked. Please allow pop-ups for this site and try again.', 
-            type: 'warning' 
-          }
-          showRetryButton.value = true
-        } else if (notification.isSkippedMoment?.()) {
-          console.log('ℹ️ Google prompt skipped')
-          status.value = { message: 'Ready to sign in with Google.', type: 'info' }
-        }
-      })
-    }
-    
     if (!status.value.message?.startsWith('Welcome') && !cooldownActive.value) {
       status.value = { message: 'Awaiting Google authentication...', type: 'info' }
     }

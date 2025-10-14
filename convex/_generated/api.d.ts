@@ -20,6 +20,8 @@ import type * as games from "../games.js";
 import type * as index from "../index.js";
 import type * as profiles from "../profiles.js";
 import type * as puzzle_admin from "../puzzle_admin.js";
+import type * as quiz from "../quiz.js";
+import type * as quiz_admin from "../quiz_admin.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -37,6 +39,8 @@ declare const fullApi: ApiFromModules<{
   index: typeof index;
   profiles: typeof profiles;
   puzzle_admin: typeof puzzle_admin;
+  quiz: typeof quiz;
+  quiz_admin: typeof quiz_admin;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
