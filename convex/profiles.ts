@@ -51,9 +51,11 @@ export const completeProfile = mutation({
   args: {
     userId: v.string(),
     name: v.string(),
+    displayName: v.optional(v.string()),
+    department: v.string(),
     role: v.union(v.literal("student"), v.literal("faculty"), v.literal("alumni")),
   },
-  handler: async (ctx, { userId, name, role }) => {
+  handler: async (ctx, { userId, name, displayName, department, role }) => {
     const doc = await ctx.db
       .query("profiles")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -61,10 +63,14 @@ export const completeProfile = mutation({
 
     if (!doc) throw new Error("Profile not found; run upsertFromSession first.");
 
+    const now = Date.now();
     await ctx.db.patch(doc._id, {
       name,
+      displayName,
+      department,
+      departmentLastChanged: now,
       role,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
   },
 });

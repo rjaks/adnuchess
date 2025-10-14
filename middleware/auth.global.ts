@@ -11,6 +11,8 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     return
   }
 
+  console.log('🛡️ Auth middleware:', { to: to.path, from: from?.path })
+
   const auth = useAuth()
 
   // If we're on client side and auth hasn't been initialized yet, initialize it first
@@ -31,16 +33,20 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
     // Only redirect if user is NOT authenticated and trying to access protected routes
     if (!auth.user.value && !publicPaths.includes(to.path)) {
+      console.log('🔄 Middleware: Redirecting unauthenticated user to welcome')
       return navigateTo('/welcome')
     }
 
     // Only redirect from public paths if user IS authenticated
-    if (auth.user.value && publicPaths.includes(to.path)) {
+    // Exception: allow authenticated users to access profile-setup
+    if (auth.user.value && publicPaths.includes(to.path) && to.path !== '/profile-setup') {
+      console.log('🔄 Middleware: Redirecting authenticated user from public path to home')
       return navigateTo('/')
     }
 
     // Profile setup logic (only on client side where Convex is available)
-    if (process.client && auth.user.value && !publicPaths.slice(0, 2).includes(to.path)) {
+    // Skip profile check if user is already on profile-setup page
+    if (process.client && auth.user.value && to.path !== '/profile-setup' && !publicPaths.includes(to.path)) {
       const user = auth.user.value
       const { $convex } = useNuxtApp()
 
@@ -56,8 +62,19 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
           userId: user.id,
         })
 
-        if (!profile?.role && to.path !== '/profile-setup') {
+        // Only redirect to profile setup if profile is incomplete
+        if (!profile?.role) {
+          console.log('🔄 Middleware: Redirecting to profile setup (incomplete profile)', { 
+            from: to.path, 
+            userId: user.id,
+            hasRole: !!profile?.role 
+          })
           return navigateTo('/profile-setup')
+        } else {
+          console.log('✅ Middleware: Profile complete, allowing navigation', {
+            to: to.path,
+            hasRole: !!profile?.role
+          })
         }
       } catch (error) {
         console.error('Profile setup failed:', error)

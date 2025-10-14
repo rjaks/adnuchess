@@ -34,6 +34,7 @@ type LoginResponse = SessionResponse & {
 export const useAuth = () => {
   const user = useState<AuthUser | null>('auth-user', () => null)
   const isInitialized = useState<boolean>('auth-initialized', () => false)
+  const isNewUser = useState<boolean>('auth-is-new-user', () => false)
 
   const refresh = async () => {
     try {
@@ -56,6 +57,7 @@ export const useAuth = () => {
     })
     user.value = response.user
     isInitialized.value = true
+    isNewUser.value = response.isNew || false
     return response
   }
 
@@ -77,5 +79,5 @@ export const useAuth = () => {
     })
   }
 
-  return { user, isInitialized, refresh, loginWithCredential, logout }
+  return { user, isInitialized, isNewUser, refresh, loginWithCredential, logout }
 }

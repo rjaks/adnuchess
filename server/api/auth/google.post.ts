@@ -43,32 +43,50 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { user, isNew } = await upsertGoogleUser({
-    id: payload.sub || payload.email,
-    email: payload.email,
-    name: payload.name,
-    picture: payload.picture,
-  })
+  try {
+    console.log('🔄 Creating/updating user for:', payload.email)
+    
+    const { user, isNew } = await upsertGoogleUser({
+      id: payload.sub || payload.email,
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture,
+    })
+    
+    console.log('👤 User upsert result:', { userId: user.id, isNew, email: user.email })
 
-  const session = await createSession({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    picture: user.picture,
-  })
+    const session = await createSession({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+    })
+    
+    console.log('🔑 Session created:', session.id)
 
-  const secure = process.env.NODE_ENV === 'production'
-  const runtimeConfig = useRuntimeConfig()
-  const ttlDays = runtimeConfig.sessionTtlDays || 7
-  const maxAge = 60 * 60 * 24 * ttlDays // Match session TTL
-  
-  setCookie(event, 'adnu_session', session.id, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
-    maxAge,
-    path: '/',
-  })
+    const secure = process.env.NODE_ENV === 'production'
+    const runtimeConfig = useRuntimeConfig()
+    const ttlDays = runtimeConfig.sessionTtlDays || 7
+    const maxAge = 60 * 60 * 24 * ttlDays // Match session TTL
+    
+    setCookie(event, 'adnu_session', session.id, {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      maxAge,
+      path: '/',
+    })
+    
+    console.log('🍪 Session cookie set for user:', user.id)
+    console.log('📤 Returning response:', { user: { id: user.id, email: user.email }, isNew })
 
-  return { user, isNew }
+    return { user, isNew }
+    
+  } catch (error) {
+    console.error('❌ Error in user creation/session setup:', error)
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Internal server error during user setup'
+    })
+  }
 })

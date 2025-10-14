@@ -36,35 +36,71 @@
         </div>
       </div>
       
-      <!-- Retry buttons -->
+      <!-- Registration Error Warning -->
+      <div v-if="registrationError && isNewUser" class="p-4 bg-orange-50 border-l-4 border-orange-400 rounded">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-orange-800">
+              New Account Registration Issue
+            </h3>
+            <p class="mt-1 text-sm text-orange-700">
+              {{ registrationError }}
+            </p>
+            <p class="mt-2 text-xs text-orange-600">
+              🆕 This appears to be your first time signing in. The system encountered an issue creating your account.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Enhanced Retry buttons -->
       <div v-if="showRetryButton && !cooldownActive" class="flex flex-col items-center space-y-3">
         <button 
           @click="retryAuth"
           :disabled="isRetrying"
           class="px-6 py-2 bg-[#021d94] text-white rounded-lg hover:bg-[#021d94]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {{ isRetrying ? 'Retrying...' : 'Retry Sign-In' }}
+          {{ isRetrying ? 'Retrying...' : isNewUser ? 'Retry Account Creation' : 'Retry Sign-In' }}
         </button>
-        <button 
-          @click="clearCacheAndRetry"
-          :disabled="isRetrying"
-          class="px-4 py-1 text-xs bg-slate-200 text-slate-700 rounded hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Clear Cache & Reset Cooldown
-        </button>
+        
+        <div class="flex gap-2">
+          <button 
+            @click="clearCacheAndRetry"
+            :disabled="isRetrying"
+            class="px-4 py-1 text-xs bg-slate-200 text-slate-700 rounded hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Clear Cache & Reset
+          </button>
+          
+          <button 
+            @click="refreshPage"
+            :disabled="isRetrying"
+            class="px-4 py-1 text-xs bg-red-200 text-red-700 rounded hover:bg-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
       </div>
 
       <p v-if="status.message" :class="statusClass" class="text-center text-sm font-medium">
         {{ status.message }}
       </p>
 
-      <!-- Debug info for troubleshooting -->
+      <!-- Enhanced Debug info for troubleshooting -->
       <div v-if="showDebugInfo" class="mt-4 p-3 bg-slate-100 rounded-lg text-xs text-slate-600">
         <p><strong>Debug Info:</strong></p>
         <p>Domain: {{ currentDomain }}</p>
         <p>Environment: {{ isProduction ? 'Production' : 'Development' }}</p>
         <p>Client ID: {{ clientId ? 'Present' : 'Missing' }}</p>
         <p>Retry Count: {{ retryCount }}/{{ maxRetries }}</p>
+        <p>Registration Attempts: {{ registrationAttempts }}/{{ maxRegistrationAttempts }}</p>
+        <p>New User: {{ isNewUser ? 'Yes' : 'No' }}</p>
+        <p>Registration Error: {{ registrationError ? 'Yes' : 'No' }}</p>
         <p>Dismissal Count: {{ dismissalCount }}/3</p>
         <p>Cooldown Active: {{ cooldownActive ? 'Yes' : 'No' }}</p>
         <p v-if="cooldownActive">Time Remaining: {{ cooldownTimeRemaining }}s</p>
@@ -74,6 +110,7 @@
     <div class="space-y-2 text-center text-xs text-slate-500">
       <p>Having trouble? Make sure you are logged into Google with your campus email before returning here.</p>
       <p><strong>Important:</strong> Don't dismiss the Google sign-in popup to avoid temporary blocks.</p>
+      <p v-if="isNewUser" class="text-orange-600"><strong>New User:</strong> If registration keeps failing, please contact support.</p>
       <button 
         @click="showDebugInfo = !showDebugInfo"
         class="text-[#021d94] hover:underline"
@@ -164,6 +201,12 @@ const cooldownTimeRemaining = ref(0)
 const dismissalCount = ref(0)
 const lastDismissalTime = ref(0)
 
+// Enhanced error tracking for new user registration
+const registrationError = ref<string | null>(null)
+const isNewUser = ref(false)
+const registrationAttempts = ref(0)
+const maxRegistrationAttempts = 3
+
 // Environment and domain info
 const currentDomain = ref('')
 const isProduction = ref(false)
@@ -222,6 +265,34 @@ const handleCooldownError = () => {
   }, 1000)
 }
 
+// Handle new user registration errors
+const handleRegistrationError = (error: any) => {
+  registrationAttempts.value++
+  isNewUser.value = true
+  
+  console.error('🆕 New user registration failed:', error)
+  
+  const errorMsg = error?.data?.statusMessage || error?.message || 'Registration failed'
+  
+  if (errorMsg.includes('profile') || errorMsg.includes('database') || errorMsg.includes('convex')) {
+    registrationError.value = 'Failed to create your profile in the database. This may be a temporary issue.'
+  } else if (errorMsg.includes('email') || errorMsg.includes('domain')) {
+    registrationError.value = 'Please ensure you are using your @gbox.adnu.edu.ph email address.'
+  } else if (errorMsg.includes('permission') || errorMsg.includes('unauthorized')) {
+    registrationError.value = 'Account creation is temporarily restricted. Please try again later.'
+  } else {
+    registrationError.value = 'Unable to complete registration. Please try again.'
+  }
+  
+  status.value = {
+    message: registrationError.value,
+    type: 'error'
+  }
+  
+  showRetryButton.value = true
+  showDebugInfo.value = true
+}
+
 const ensureScript = () => {
   if (window.google?.accounts?.id) {
     return Promise.resolve()
@@ -256,37 +327,101 @@ const handleGoogleCredential = async ({ credential }: GoogleIdentityCredential) 
 
   try {
     status.value = { message: 'Verifying your campus account...', type: 'info' }
+    console.log('🔐 Processing Google credential...')
+    
     const response = await loginWithCredential(credential)
-    const destination = response.isNew ? '/account' : props.redirectTo
-    status.value = {
-      message: response.isNew
-        ? 'Welcome to AdNU Chess Arena! Account created successfully.'
-        : 'Signed in successfully! Redirecting...',
-      type: 'success',
+    
+    console.log('📥 Login response received:', {
+      hasUser: !!response.user,
+      userId: response.user?.id,
+      userEmail: response.user?.email,
+      isNew: response.isNew,
+      responseKeys: Object.keys(response)
+    })
+    
+    // Handle successful authentication
+    if (response.isNew === true) {
+      console.log('🆕 New user detected, redirecting to profile setup')
+      console.log('🔍 Response details:', response)
+      isNewUser.value = true
+      status.value = {
+        message: 'Welcome to AdNU Chess Arena! Setting up your profile...',
+        type: 'success',
+      }
+      
+      // Add delay to show success message, then navigate
+      setTimeout(async () => {
+        console.log('🚀 Starting navigation to profile setup...')
+        console.log('📍 Current route:', useRoute().path)
+        console.log('🔧 Current user after login:', useAuth().user.value)
+        
+        try {
+          // Try multiple navigation methods to ensure it works
+          console.log('🎯 Method 1: navigateTo with replace')
+          await navigateTo('/profile-setup', { replace: true })
+          console.log('✅ Navigation completed successfully')
+        } catch (navError) {
+          console.error('❌ navigateTo failed, trying router push:', navError)
+          try {
+            await useRouter().push('/profile-setup')
+            console.log('✅ Router push completed successfully')
+          } catch (routerError) {
+            console.error('❌ Router push also failed, using window.location:', routerError)
+            window.location.href = '/profile-setup'
+          }
+        }
+      }, 1500)
+    } else {
+      console.log('👤 Existing user, redirecting to main app')
+      status.value = {
+        message: 'Signed in successfully! Redirecting...',
+        type: 'success',
+      }
+      
+      setTimeout(async () => {
+        console.log('🚀 Navigating to:', props.redirectTo)
+        await navigateTo(props.redirectTo)
+      }, 1000)
     }
+    
     showRetryButton.value = false
-    await navigateTo(destination)
-  } catch (error: any) {
-    console.error('🚨 Google login failed:', error)
+    registrationError.value = null
     
-    // Show retry button for production errors or after multiple attempts
-    if (isProduction.value || retryCount.value > 0) {
-      showRetryButton.value = true
+  } catch (error: any) {
+    console.error('🚨 Authentication/Registration failed:', error)
+    
+    // Check if this is a new user registration error
+    if (error?.status === 400 || error?.statusCode === 400 || 
+        error?.message?.includes('profile') || error?.message?.includes('registration')) {
+      handleRegistrationError(error)
+      return
     }
     
-    // Handle specific production errors
+    // Handle other authentication errors
+    showRetryButton.value = true
+    
     const errorMsg = error?.data?.statusMessage || error?.message || 'Sign-in failed'
+    
     if (errorMsg.includes('token') || errorMsg.includes('aborted') || errorMsg.includes('origin')) {
       status.value = {
         message: 'Authentication temporarily unavailable. Please try again in a moment.',
         type: 'error',
       }
-      showRetryButton.value = true
-    } else {
+    } else if (errorMsg.includes('email') || errorMsg.includes('domain')) {
       status.value = {
-        message: 'Sign-in failed. Make sure you are using your gbox email.',
+        message: 'Please use your @gbox.adnu.edu.ph email address to sign in.',
         type: 'error',
       }
+    } else {
+      status.value = {
+        message: 'Sign-in failed. Please try again or contact support if the issue persists.',
+        type: 'error',
+      }
+    }
+    
+    // Show debug info for production errors
+    if (isProduction.value) {
+      showDebugInfo.value = true
     }
   }
 }
@@ -301,22 +436,44 @@ const retryAuth = async () => {
     return
   }
   
-  if (isRetrying.value || retryCount.value >= maxRetries.value) return
+  if (isRetrying.value) return
   
   isRetrying.value = true
-  retryCount.value++
   
   try {
-    status.value = { message: `Retrying authentication... (${retryCount.value}/${maxRetries.value})`, type: 'info' }
+    // Reset registration state
+    registrationError.value = null
+    
+    // If we had registration issues, show specific messaging
+    if (isNewUser.value) {
+      status.value = { 
+        message: 'Retrying account creation...', 
+        type: 'info' 
+      }
+    } else {
+      status.value = { 
+        message: `Retrying authentication... (${retryCount.value + 1}/${maxRetries.value})`, 
+        type: 'info' 
+      }
+    }
+    
+    retryCount.value++
     await initGoogle()
+    
   } catch (error) {
     console.error('🔄 Retry failed:', error)
+    
     if (retryCount.value >= maxRetries.value) {
       status.value = { 
-        message: 'Max retries reached. Please refresh the page or try again later.', 
+        message: 'Multiple retry attempts failed. Please refresh the page or try again later.', 
         type: 'error' 
       }
       showRetryButton.value = false
+    } else {
+      status.value = {
+        message: 'Retry failed. Please try again.',
+        type: 'error'
+      }
     }
   } finally {
     isRetrying.value = false
@@ -330,45 +487,78 @@ const clearCacheAndRetry = async () => {
   isRetrying.value = true
   
   try {
+    console.log('🧹 Clearing authentication cache and resetting state...')
+    
     // Clear Google account selection cache
     if (window.google?.accounts?.id) {
       window.google.accounts.id.cancel()
     }
     
-    // Reset cooldown state
+    // Reset all state
     cooldownActive.value = false
     cooldownTimeRemaining.value = 0
     dismissalCount.value = 0
-    
-    // Reset retry count
     retryCount.value = 0
+    registrationAttempts.value = 0
+    registrationError.value = null
+    isNewUser.value = false
     
-    // Clear relevant localStorage
+    // Clear browser storage
     if (process.client) {
+      // Clear localStorage
       const keysToRemove = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
-        if (key && (key.includes('google') || key.includes('oauth') || key.includes('gsi'))) {
+        if (key && (key.includes('google') || key.includes('oauth') || key.includes('gsi') || 
+                   key.includes('auth') || key.includes('user'))) {
           keysToRemove.push(key)
         }
       }
       keysToRemove.forEach(key => localStorage.removeItem(key))
+      
+      // Clear sessionStorage
+      const sessionKeysToRemove = []
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i)
+        if (key && (key.includes('google') || key.includes('oauth') || key.includes('gsi') || 
+                   key.includes('auth') || key.includes('user'))) {
+          sessionKeysToRemove.push(key)
+        }
+      }
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key))
     }
     
-    status.value = { message: 'Cache cleared and cooldown reset. Retrying...', type: 'info' }
+    status.value = { 
+      message: 'Cache cleared and authentication state reset. Reinitializing...', 
+      type: 'info' 
+    }
     
-    // Wait a moment for cache to clear
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Wait for cache to clear
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    
+    // Force reload Google script
+    const existingScript = document.getElementById('google-identity-script')
+    if (existingScript) {
+      existingScript.remove()
+    }
     
     await initGoogle()
+    
   } catch (error) {
     console.error('🧹 Clear cache failed:', error)
     status.value = { 
-      message: 'Failed to clear cache. Please refresh the page manually.', 
+      message: 'Failed to clear cache. Please refresh the page manually and try again.', 
       type: 'error' 
     }
   } finally {
     isRetrying.value = false
+  }
+}
+
+// Add method to manually refresh the page (nuclear option)
+const refreshPage = () => {
+  if (process.client) {
+    window.location.reload()
   }
 }
 
