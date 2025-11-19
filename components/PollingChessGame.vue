@@ -39,9 +39,7 @@
             <p class="text-xs text-slate-500">{{ gameState?.gameMode }} • {{ formatGameTime(gameTime) }}</p>
           </div>
         </div>
-      </div>
-
-      <!-- Chess Board -->
+      </div>      <!-- Chess Board and Move History -->
       <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">
         <!-- Opponent Info -->
         <div class="mb-6 flex items-center justify-between">
@@ -61,27 +59,122 @@
               <span v-else class="text-red-600">You Lost</span>
             </div>
           </div>
-        </div>
-
-        <!-- Chess Board Grid -->
-        <div class="rounded-3xl border border-white/70 bg-white/60 p-4 shadow-inner">
-          <div class="aspect-square max-w-lg mx-auto">
-            <div class="grid grid-cols-8 gap-0 h-full w-full rounded-xl overflow-hidden">
-              <div
-                v-for="(square, index) in boardSquares"
-                :key="index"
-                :class="[
-                  'aspect-square flex items-center justify-center text-2xl cursor-pointer transition-all',
-                  getSquareColor(square.file, square.rank),
-                  square.isSelected ? 'ring-4 ring-blue-500 ring-inset' : '',
-                  square.isLegalMove ? 'ring-2 ring-green-400 ring-inset' : '',
-                  square.isLastMove ? 'bg-yellow-200' : ''
-                ]"
-                @click="handleSquareClick(square)"
-              >
-                <span v-if="square.piece" class="select-none">
-                  {{ getPieceSymbol(square.piece.type, square.piece.color) }}
-                </span>
+        </div>        <!-- Board and Moves Side by Side -->
+        <div class="flex gap-8 items-start justify-center">
+          <!-- Chess Board Grid -->
+        <div class="rounded-3xl border-4 border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-10 shadow-inner flex-1 max-w-7xl">
+          <div class="aspect-square w-full">            <!-- Board with coordinates -->
+            <div class="relative">
+              <!-- File labels (A-H) at top -->
+              <div class="flex mb-2">
+                <div class="w-8"></div> <!-- Spacer for left rank labels -->
+                <div class="flex-1 grid grid-cols-8 gap-0">
+                  <span v-for="file in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']" :key="file" class="text-center text-sm font-bold text-[#021d94] flex items-center justify-center">
+                    {{ file }}
+                  </span>
+                </div>
+                <div class="w-8"></div> <!-- Spacer for right rank labels -->
+              </div>
+              
+              <div class="flex gap-2">
+                <!-- Rank labels (8-1) on left -->
+                <div class="flex flex-col justify-between w-8">
+                  <span v-for="rank in (myColor === 'white' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8])" :key="rank" class="flex items-center justify-center text-sm font-bold text-[#021d94] aspect-square">
+                    {{ rank }}
+                  </span>
+                </div>
+                
+                <!-- Chess board -->
+                <div class="flex-1 overflow-hidden shadow-2xl border-8 border-[#021d94]/30">
+                  <div class="grid grid-cols-8 gap-0 h-full w-full">
+                    <div
+                      v-for="(square, index) in boardSquares"
+                      :key="index"
+                      :class="[
+                        'aspect-square flex items-center justify-center cursor-pointer transition-all duration-200 relative',
+                        getSquareColor(square.file, square.rank),
+                        square.isSelected ? 'ring-4 ring-[#021d94] ring-inset z-10' : '',
+                        square.isLastMove && !square.isSelected ? 'ring-4 ring-[#ffaa00] ring-inset' : '',
+                        !square.isSelected && !square.isLastMove ? 'hover:brightness-90' : ''
+                      ]"
+                      @click="handleSquareClick(square)"
+                    >                      <!-- Legal move indicator -->
+                      <div
+                        v-if="square.isLegalMove && !square.piece"
+                        class="absolute inset-0 flex items-center justify-center"
+                      >
+                        <div class="w-4 h-4 rounded-full bg-[#021d94]/50"></div>
+                      </div>
+                      <!-- Capture indicator - light red overlay -->
+                      <div
+                        v-else-if="square.isLegalMove && square.piece"
+                        class="absolute inset-0 bg-red-400/40"
+                      ></div><!-- Chess piece -->
+                      <span 
+                        v-if="square.piece" 
+                        :class="[
+                          'select-none font-bold',
+                          'text-6xl leading-none'
+                        ]"
+                        :style="square.piece.color === 'w'
+                          ? 'color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; paint-order: stroke fill; -webkit-text-stroke: 2px rgba(0,0,0,0.8); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));' 
+                          : 'color: #1e293b !important; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));'"
+                      >
+                        {{ getPieceSymbol(square.piece.type, square.piece.color) }}
+                      </span>
+                    </div>
+                  </div>                </div>
+                
+                <!-- Rank labels (8-1) on right -->
+                <div class="flex flex-col justify-between w-8">
+                  <span v-for="rank in (myColor === 'white' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8])" :key="rank + '-right'" class="flex items-center justify-center text-sm font-bold text-[#021d94] aspect-square">
+                    {{ rank }}
+                  </span>
+                </div>
+              </div>              
+              <!-- File labels (A-H) at bottom -->
+              <div class="flex mt-2">
+                <div class="w-8"></div> <!-- Spacer for left rank labels -->
+                <div class="flex-1 grid grid-cols-8 gap-0">
+                  <span v-for="file in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']" :key="file + '-bottom'" class="text-center text-sm font-bold text-[#021d94] flex items-center justify-center">
+                    {{ file }}
+                  </span>
+                </div>
+                <div class="w-8"></div> <!-- Spacer for right rank labels -->
+              </div></div>
+          </div>
+        </div>          <!-- Move History Panel -->
+          <div v-if="gameState?.moveHistory && gameState.moveHistory.length > 0" class="w-64 flex-shrink-0">
+            <div class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner h-full">
+              <h4 class="text-sm font-semibold text-[#021d94] mb-3">Moves</h4>
+              <div class="overflow-y-auto" style="max-height: 500px;">
+                <div class="space-y-1">
+                  <!-- Group moves in pairs (white and black) -->
+                  <div 
+                    v-for="moveNumber in Math.ceil(gameState.moveHistory.length / 2)" 
+                    :key="moveNumber"
+                    class="flex items-center gap-2 text-sm"
+                  >
+                    <!-- Move number -->
+                    <span class="font-semibold text-[#021d94] w-8 flex-shrink-0">
+                      {{ moveNumber }}.
+                    </span>
+                    
+                    <!-- White's move -->
+                    <span class="font-medium text-slate-700 bg-white/60 px-3 py-1 rounded flex-1">
+                      {{ gameState.moveHistory[(moveNumber - 1) * 2] }}
+                    </span>
+                    
+                    <!-- Black's move (if exists) -->
+                    <span 
+                      v-if="(moveNumber - 1) * 2 + 1 < gameState.moveHistory.length"
+                      class="font-medium text-slate-700 bg-white/60 px-3 py-1 rounded flex-1"
+                    >
+                      {{ gameState.moveHistory[(moveNumber - 1) * 2 + 1] }}
+                    </span>
+                    <span v-else class="flex-1"></span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -117,6 +210,32 @@
           <div class="flex justify-between">
             <span class="text-slate-600">Game Time</span>
             <span class="font-semibold">{{ formatGameTime(gameTime) }}</span>
+          </div>
+        </div>
+
+        <!-- Move History -->
+        <div v-if="gameState?.moveHistory && gameState.moveHistory.length > 0" class="mt-6">
+          <h4 class="text-sm font-semibold text-slate-900 mb-3">Move History</h4>
+          <div class="max-h-48 overflow-y-auto rounded-2xl bg-gradient-to-br from-amber-50 to-blue-50 p-4 border border-white/70">
+            <div class="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-2 text-sm">
+              <template v-for="(move, index) in gameState.moveHistory" :key="index">
+                <!-- Move number (only for white moves) -->
+                <span v-if="index % 2 === 0" class="font-semibold text-[#021d94]">
+                  {{ Math.floor(index / 2) + 1 }}.
+                </span>
+                <span v-else></span>
+                
+                <!-- White's move -->
+                <span v-if="index % 2 === 0" class="font-medium text-slate-700 bg-white/60 px-2 py-1 rounded">
+                  {{ move }}
+                </span>
+                
+                <!-- Black's move -->
+                <span v-else class="font-medium text-slate-700 bg-white/60 px-2 py-1 rounded">
+                  {{ move }}
+                </span>
+              </template>
+            </div>
           </div>
         </div>
         
@@ -239,6 +358,7 @@ const gameError = ref('')
 const gameState = ref<GameState | null>(null)
 const game = ref(new Chess())
 const selectedSquare = ref<string | null>(null)
+const legalMovesCache = ref<Set<string>>(new Set())
 const gameTime = ref(0)
 const lastPolledTime = ref(0)
 
@@ -308,8 +428,34 @@ const opponentInitials = computed(() => {
   return opponent.value.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 })
 
+// Watch selectedSquare and update cache immediately
+watch(selectedSquare, (newSquare) => {
+  const cacheStart = performance.now()
+  legalMovesCache.value.clear()
+  
+  if (newSquare) {
+    try {
+      const movesVerbose = game.value.moves({
+        square: newSquare as Square,
+        verbose: true
+      })
+      
+      if (movesVerbose.length > 0 && typeof movesVerbose[0] === 'object') {
+        (movesVerbose as any[]).forEach(move => {
+          legalMovesCache.value.add(move.to)
+        })
+      }
+      
+      console.log(`[PERF] Legal moves cache updated for ${newSquare}: ${legalMovesCache.value.size} moves in ${(performance.now() - cacheStart).toFixed(2)}ms`)
+    } catch (error) {
+      console.error('Error calculating legal moves:', error)
+    }
+  }
+}, { immediate: true })
+
 // Board representation
 const boardSquares = computed((): BoardSquare[] => {
+  const computeStart = performance.now()
   const squares: BoardSquare[] = []
   const board = game.value.board()
   
@@ -326,19 +472,8 @@ const boardSquares = computed((): BoardSquare[] => {
         const piece = board[boardRank] ? board[boardRank][boardFile] : null
         const squareName = `${file}${rank}`
         
-      // Check if this square is a legal move
-        let isLegalMove = false
-        if (selectedSquare.value) {
-          const movesVerbose = game.value.moves({
-            square: selectedSquare.value as Square,
-            verbose: true
-          })
-          
-          // Handle the case where moves might be an array of strings or objects
-          if (movesVerbose.length > 0 && typeof movesVerbose[0] === 'object') {
-            isLegalMove = (movesVerbose as any[]).some(move => move.to === squareName)
-          }
-        }
+        // Use cached legal moves instead of recalculating for every square
+        const isLegalMove = selectedSquare.value ? legalMovesCache.value.has(squareName) : false
         
         squares.push({
           file,
@@ -350,6 +485,11 @@ const boardSquares = computed((): BoardSquare[] => {
         })
       }
     }
+  }
+  
+  const computeTime = performance.now() - computeStart
+  if (computeTime > 5) {
+    console.log(`[PERF] boardSquares computed in ${computeTime.toFixed(2)}ms`)
   }
   
   return squares
@@ -484,8 +624,12 @@ const makeMove = async (fromSquare: string, toSquare: string) => {
 }
 
 const handleSquareClick = (square: BoardSquare) => {
+  const clickStart = performance.now()
+  console.log(`[PERF] Click started on ${square.file}${square.rank}`)
+  
   // Don't allow moves if it's not our turn or game isn't active
   if (!isMyTurn.value || gameState.value?.status !== 'active') {
+    console.log(`[PERF] Click ignored - not my turn or game not active`)
     return
   }
   
@@ -496,37 +640,32 @@ const handleSquareClick = (square: BoardSquare) => {
     const from = selectedSquare.value
     const to = squareName
     
-    // Check if this is a valid move
-    const possibleMovesVerbose = game.value.moves({ 
-      square: from as Square, 
-      verbose: true 
-    })
-    
-    // Handle the case where moves might be an array of strings or objects
-    let validMove = false
-    if (possibleMovesVerbose.length > 0 && typeof possibleMovesVerbose[0] === 'object') {
-      validMove = (possibleMovesVerbose as any[]).some(move => move.to === to)
-    }
-    
-    if (validMove) {
+    // Check if this is a valid move using isLegalMove from boardSquares
+    // This avoids recalculating legal moves on every click
+    if (square.isLegalMove) {
+      console.log(`[PERF] Making move took: ${(performance.now() - clickStart).toFixed(2)}ms`)
       makeMove(from, to)
     } else if (square.piece && square.piece.color === (myColor.value === 'white' ? 'w' : 'b')) {
       // Select different piece
       selectedSquare.value = squareName
+      console.log(`[PERF] Re-selection took: ${(performance.now() - clickStart).toFixed(2)}ms`)
     } else {
       // Invalid move, deselect
       selectedSquare.value = null
+      console.log(`[PERF] Deselect took: ${(performance.now() - clickStart).toFixed(2)}ms`)
     }
   } else if (square.piece && square.piece.color === (myColor.value === 'white' ? 'w' : 'b')) {
     // Select piece
     selectedSquare.value = squareName
+    console.log(`[PERF] Selection took: ${(performance.now() - clickStart).toFixed(2)}ms`)
   }
 }
 
 const getSquareColor = (file: string, rank: number) => {
   const fileIndex = 'abcdefgh'.indexOf(file)
   const isLight = (fileIndex + rank) % 2 === 1
-  return isLight ? 'bg-amber-100' : 'bg-amber-200'
+  // Blue and gold theme - lighter shades for better visibility
+  return isLight ? 'bg-amber-100' : 'bg-blue-400'
 }
 
 const getPieceSymbol = (type: PieceSymbol, color: 'w' | 'b') => {
@@ -545,7 +684,7 @@ const getPieceSymbol = (type: PieceSymbol, color: 'w' | 'b') => {
       r: '♜', 
       b: '♝', 
       n: '♞', 
-      p: '♟' 
+      p: '♟︎' // Using alternate black pawn Unicode with variation selector
     }
   }
   
