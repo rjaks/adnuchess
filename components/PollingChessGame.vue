@@ -31,15 +31,13 @@
           <div class="flex items-center gap-3">
             <div class="h-2 w-2 rounded-full animate-pulse" :class="connectionStatusClass"></div>
             <span class="text-sm font-medium text-slate-900">{{ connectionStatus }}</span>
-          </div>
-          <div class="text-right">
+          </div>          <div class="text-right">
             <p class="text-sm font-semibold text-slate-900">
               {{ isMyTurn ? 'Your turn' : 'Opponent\'s turn' }}
-            </p>
-            <p class="text-xs text-slate-500">{{ gameState?.gameMode }} • {{ formatGameTime(gameTime) }}</p>
+            </p>            <p class="text-xs text-slate-500">{{ gameState?.gameMode }} • {{ formatGameTime(gameTime) }}</p>
           </div>
         </div>
-      </div>      <!-- Chess Board and Move History -->
+      </div><!-- Chess Board and Move History -->
       <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">
         <!-- Opponent Info -->
         <div class="mb-6 flex items-center justify-between">
@@ -83,14 +81,75 @@
                     {{ rank }}
                   </span>
                 </div>
-                
-                <!-- Chess board -->
-                <div class="flex-1 overflow-hidden shadow-2xl border-8 border-[#021d94]/30">
-                  <div class="grid grid-cols-8 gap-0 h-full w-full">
-                    <div
+                  <!-- Chess board -->
+                <div class="flex-1 overflow-hidden shadow-2xl border-8 border-[#021d94]/30 relative">
+                  <!-- SVG overlay for arrows -->
+                  <svg
+                    class="absolute inset-0 pointer-events-none z-10"
+                    style="width: 100%; height: 100%;"
+                  >
+                    <defs>
+                      <marker
+                        id="arrowhead-green"
+                        markerWidth="10"
+                        markerHeight="10"
+                        refX="9"
+                        refY="3"
+                        orient="auto"
+                      >
+                        <polygon points="0 0, 10 3, 0 6" fill="rgba(34, 197, 94, 0.8)" />
+                      </marker>
+                      <marker
+                        id="arrowhead-red"
+                        markerWidth="10"
+                        markerHeight="10"
+                        refX="9"
+                        refY="3"
+                        orient="auto"
+                      >
+                        <polygon points="0 0, 10 3, 0 6" fill="rgba(239, 68, 68, 0.8)" />
+                      </marker>
+                      <marker
+                        id="arrowhead-yellow"
+                        markerWidth="10"
+                        markerHeight="10"
+                        refX="9"
+                        refY="3"
+                        orient="auto"
+                      >
+                        <polygon points="0 0, 10 3, 0 6" fill="rgba(234, 179, 8, 0.8)" />
+                      </marker>
+                      <marker
+                        id="arrowhead-blue"
+                        markerWidth="10"
+                        markerHeight="10"
+                        refX="9"
+                        refY="3"
+                        orient="auto"
+                      >
+                        <polygon points="0 0, 10 3, 0 6" fill="rgba(59, 130, 246, 0.8)" />
+                      </marker>
+                    </defs>
+                    
+                    <!-- Draw all arrows -->
+                    <line
+                      v-for="(arrow, index) in arrows"
+                      :key="`arrow-${index}`"
+                      :x1="getSquareCenter(arrow.from).x + '%'"
+                      :y1="getSquareCenter(arrow.from).y + '%'"
+                      :x2="getSquareCenter(arrow.to).x + '%'"
+                      :y2="getSquareCenter(arrow.to).y + '%'"
+                      :stroke="getArrowColor(arrow.color)"
+                      stroke-width="8"
+                      stroke-linecap="round"
+                      :marker-end="`url(#arrowhead-${arrow.color})`"
+                      opacity="0.8"
+                    />
+                  </svg>
+                  
+                  <div class="grid grid-cols-8 gap-0 h-full w-full"><div
                       v-for="(square, index) in boardSquares"
-                      :key="index"
-                      :class="[
+                      :key="index"                      :class="[
                         'aspect-square flex items-center justify-center cursor-pointer transition-all duration-200 relative',
                         getSquareColor(square.file, square.rank),
                         square.isSelected ? 'ring-4 ring-[#021d94] ring-inset z-10' : '',
@@ -98,23 +157,42 @@
                         !square.isSelected && !square.isLastMove ? 'hover:brightness-90' : ''
                       ]"
                       @click="handleSquareClick(square)"
-                    >                      <!-- Legal move indicator -->
+                      @contextmenu.prevent="handleRightMouseDown($event, square)"
+                      @mousedown.right.prevent="handleRightMouseDown($event, square)"
+                      @mouseup.right.prevent="handleRightMouseUp($event, square)"
+                      @mouseenter="handleMouseEnter(square)"
+                      @dragover.prevent="handleDragOver($event, square)"
+                      @drop="handleDrop($event, square)"
+                    >
+                      <!-- Square highlight overlay -->
+                      <div
+                        v-if="getSquareHighlight(square.file + square.rank)"
+                        :class="[
+                          'absolute inset-0 pointer-events-none z-[5]',
+                          getHighlightClass(getSquareHighlight(square.file + square.rank)!)
+                        ]"
+                      ></div><!-- Legal move indicator -->
                       <div
                         v-if="square.isLegalMove && !square.piece"
-                        class="absolute inset-0 flex items-center justify-center"
+                        class="absolute inset-0 flex items-center justify-center pointer-events-none"
                       >
                         <div class="w-4 h-4 rounded-full bg-[#021d94]/50"></div>
-                      </div>
-                      <!-- Capture indicator - light red overlay -->
+                      </div>                      <!-- Capture indicator - light red overlay -->
                       <div
                         v-else-if="square.isLegalMove && square.piece"
-                        class="absolute inset-0 bg-red-400/40"
-                      ></div><!-- Chess piece -->
+                        class="absolute inset-0 bg-red-400/40 pointer-events-none"
+                      ></div>
+                      
+                      <!-- Chess piece -->
                       <span 
                         v-if="square.piece" 
+                        :draggable="canDragPiece(square)"
+                        @dragstart="handleDragStart($event, square)"
+                        @dragend="handleDragEnd"
                         :class="[
                           'select-none font-bold',
-                          'text-6xl leading-none'
+                          'text-6xl leading-none',
+                          canDragPiece(square) ? 'cursor-move' : 'cursor-default'
                         ]"
                         :style="square.piece.color === 'w'
                           ? 'color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; paint-order: stroke fill; -webkit-text-stroke: 2px rgba(0,0,0,0.8); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));' 
@@ -143,11 +221,18 @@
                 <div class="w-8"></div> <!-- Spacer for right rank labels -->
               </div></div>
           </div>
-        </div>          <!-- Move History Panel -->
-          <div v-if="gameState?.moveHistory && gameState.moveHistory.length > 0" class="w-64 flex-shrink-0">
-            <div class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner h-full">
-              <h4 class="text-sm font-semibold text-[#021d94] mb-3">Moves</h4>
-              <div class="overflow-y-auto" style="max-height: 500px;">
+        </div>          <!-- Move History and Game Controls Panel -->
+          <div class="w-80 flex-shrink-0 space-y-4">            <!-- Move History -->
+            <div v-if="gameState?.moveHistory && gameState.moveHistory.length > 0" class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-semibold text-[#021d94]">Moves</h4>
+                <div v-if="reviewMode" class="text-xs font-medium text-[#021d94] bg-white/60 px-2 py-1 rounded">
+                  {{ (reviewMoveIndex ?? -1) + 1 }}/{{ gameState.moveHistory.length }}
+                </div>
+              </div>
+              
+              <!-- Scrollable Move History - Limited Height -->
+              <div class="overflow-y-auto mb-3" style="max-height: 200px;">
                 <div class="space-y-1">
                   <!-- Group moves in pairs (white and black) -->
                   <div 
@@ -161,18 +246,161 @@
                     </span>
                     
                     <!-- White's move -->
-                    <span class="font-medium text-slate-700 bg-white/60 px-3 py-1 rounded flex-1">
+                    <span 
+                      @click="goToMove((moveNumber - 1) * 2)"
+                      :class="[
+                        'font-medium text-slate-700 px-3 py-1 rounded flex-1 cursor-pointer transition',
+                        reviewMode && reviewMoveIndex === (moveNumber - 1) * 2 
+                          ? 'bg-[#021d94] text-white' 
+                          : 'bg-white/60 hover:bg-white/80'
+                      ]"
+                    >
                       {{ gameState.moveHistory[(moveNumber - 1) * 2] }}
                     </span>
                     
                     <!-- Black's move (if exists) -->
                     <span 
                       v-if="(moveNumber - 1) * 2 + 1 < gameState.moveHistory.length"
-                      class="font-medium text-slate-700 bg-white/60 px-3 py-1 rounded flex-1"
+                      @click="goToMove((moveNumber - 1) * 2 + 1)"
+                      :class="[
+                        'font-medium text-slate-700 px-3 py-1 rounded flex-1 cursor-pointer transition',
+                        reviewMode && reviewMoveIndex === (moveNumber - 1) * 2 + 1
+                          ? 'bg-[#021d94] text-white'
+                          : 'bg-white/60 hover:bg-white/80'
+                      ]"
                     >
                       {{ gameState.moveHistory[(moveNumber - 1) * 2 + 1] }}
                     </span>
                     <span v-else class="flex-1"></span>
+                  </div>
+                </div>              </div>              <!-- Navigation Buttons -->
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  @click="goToPreviousMove"
+                  :disabled="reviewMode && reviewMoveIndex === -1"
+                  class="flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-white/80 hover:bg-white transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <svg class="w-5 h-5 text-[#021d94]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span class="text-xs font-semibold text-[#021d94]">Prev</span>
+                </button>
+                
+                <button
+                  @click="exitReviewMode"
+                  :disabled="!reviewMode"
+                  class="flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-white/80 hover:bg-white transition disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Exit review mode"
+                >
+                  <svg class="w-5 h-5 text-[#021d94]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span class="text-xs font-semibold text-[#021d94]">Exit</span>
+                </button>
+                
+                <button
+                  @click="goToNextMove"
+                  :disabled="!reviewMode"
+                  class="flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-white/80 hover:bg-white transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <span class="text-xs font-semibold text-[#021d94]">Next</span>
+                  <svg class="w-5 h-5 text-[#021d94]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>            <!-- Game Controls -->
+            <div v-if="isGameInProgress" class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner">
+              <h4 class="text-sm font-semibold text-[#021d94] mb-3">Actions</h4>
+              <div class="flex gap-2">
+                <button
+                  @click="offerDraw"
+                  class="flex-1 rounded-lg bg-[#021d94] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#021d94]/90 transition shadow-md"
+                  :disabled="drawOffered && !drawOfferInbound"
+                >
+                  {{ drawButtonText }}
+                </button>
+                <button
+                  @click="confirmResign"
+                  class="flex-1 rounded-lg bg-[#021d94] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#021d94]/90 transition shadow-md"
+                >
+                  Resign
+                </button>
+              </div>
+            </div>
+              <!-- Chat Panel -->
+            <div class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <h4 class="text-sm font-semibold text-[#021d94]">Chat</h4>
+                  <span
+                    v-if="!showChat && unreadMessages > 0"
+                    class="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"
+                  >
+                    {{ unreadMessages > 9 ? '9+' : unreadMessages }}
+                  </span>
+                </div>
+                <button
+                  @click="toggleChat"
+                  class="text-xs font-medium text-[#021d94] hover:text-[#021d94]/80 transition"
+                >
+                  {{ showChat ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              
+              <div v-if="showChat" class="space-y-3">
+                <!-- Chat messages -->
+                <div
+                  ref="chatContainer"
+                  class="h-40 overflow-y-auto bg-white/60 rounded-lg p-3 space-y-2"
+                >
+                  <div
+                    v-for="(msg, index) in chatMessages"
+                    :key="index"
+                    :class="[
+                      'text-sm p-2 rounded-lg',
+                      msg.userId === user?.id
+                        ? 'bg-[#021d94] text-white ml-auto max-w-[80%]'
+                        : 'bg-white/80 text-slate-900 mr-auto max-w-[80%]'
+                    ]"
+                  >
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                      <div class="font-semibold text-xs opacity-80">
+                        {{ msg.userName }}
+                      </div>
+                      <div class="text-xs opacity-60">
+                        {{ formatMessageTime(msg.timestamp) }}
+                      </div>
+                    </div>
+                    <div class="break-words">{{ msg.message }}</div>
+                  </div>
+                  
+                  <div v-if="chatMessages.length === 0" class="text-center text-slate-500 text-xs py-4">
+                    No messages yet. Say hi! 👋
+                  </div>
+                </div>
+                
+                <!-- Chat input -->
+                <div class="space-y-2">
+                  <div class="flex gap-2">
+                    <input
+                      v-model="chatInput"
+                      @keyup.enter="sendChatMessage"
+                      type="text"
+                      placeholder="Type a message..."
+                      maxlength="500"
+                      class="flex-1 rounded-lg px-3 py-2 text-sm border border-slate-300 focus:border-[#021d94] focus:ring-1 focus:ring-[#021d94] outline-none"
+                    />
+                    <button
+                      @click="sendChatMessage"
+                      :disabled="!chatInput.trim()"
+                      class="rounded-lg bg-[#021d94] px-4 py-2 text-sm font-semibold text-white hover:bg-[#021d94]/90 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Send
+                    </button>
+                  </div>
+                  <div class="text-xs text-slate-500 text-right">
+                    {{ chatInput.length }}/500
                   </div>
                 </div>
               </div>
@@ -190,71 +418,9 @@
               <p class="font-semibold text-slate-900">{{ user?.name || 'You' }}</p>
               <p class="text-xs text-slate-500">{{ myColor === 'white' ? 'White' : 'Black' }}</p>
             </div>
-          </div>
-          <div class="text-right">
+          </div>          <div class="text-right">
             <p class="text-sm text-slate-600">Moves: {{ gameState?.moveHistory?.length || 0 }}</p>
-          </div>
-        </div>
-      </div>      <!-- Game Info -->
-      <div class="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-inner">
-        <h3 class="text-lg font-semibold text-slate-900">Game Info</h3>
-        <div class="mt-4 space-y-2 text-sm">
-          <div class="flex justify-between">
-            <span class="text-slate-600">Status</span>
-            <span class="font-semibold capitalize">{{ gameState?.status }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-slate-600">Last Move</span>
-            <span class="font-semibold">{{ gameState?.lastMove || 'None' }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-slate-600">Game Time</span>
-            <span class="font-semibold">{{ formatGameTime(gameTime) }}</span>
-          </div>
-        </div>
-
-        <!-- Move History -->
-        <div v-if="gameState?.moveHistory && gameState.moveHistory.length > 0" class="mt-6">
-          <h4 class="text-sm font-semibold text-slate-900 mb-3">Move History</h4>
-          <div class="max-h-48 overflow-y-auto rounded-2xl bg-gradient-to-br from-amber-50 to-blue-50 p-4 border border-white/70">
-            <div class="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-2 text-sm">
-              <template v-for="(move, index) in gameState.moveHistory" :key="index">
-                <!-- Move number (only for white moves) -->
-                <span v-if="index % 2 === 0" class="font-semibold text-[#021d94]">
-                  {{ Math.floor(index / 2) + 1 }}.
-                </span>
-                <span v-else></span>
-                
-                <!-- White's move -->
-                <span v-if="index % 2 === 0" class="font-medium text-slate-700 bg-white/60 px-2 py-1 rounded">
-                  {{ move }}
-                </span>
-                
-                <!-- Black's move -->
-                <span v-else class="font-medium text-slate-700 bg-white/60 px-2 py-1 rounded">
-                  {{ move }}
-                </span>
-              </template>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Game Controls -->
-        <div v-if="isGameInProgress" class="mt-6 flex justify-center gap-4">
-          <button
-            @click="confirmResign"
-            class="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600 transition"
-          >
-            Resign
-          </button>
-          <button
-            @click="offerDraw"
-            class="rounded-lg bg-slate-500 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-600 transition"
-            :disabled="drawOffered && !drawOfferInbound"
-          >
-            {{ drawButtonText }}
-          </button>
-        </div>
+          </div>        </div>
       </div>
       
       <!-- Draw offer modal -->
@@ -361,10 +527,34 @@ const selectedSquare = ref<string | null>(null)
 const legalMovesCache = ref<Set<string>>(new Set())
 const gameTime = ref(0)
 const lastPolledTime = ref(0)
+const reviewMode = ref(false)
+const reviewMoveIndex = ref<number | null>(null)
+
+// Drag and drop state
+const draggedSquare = ref<string | null>(null)
+const draggedPiece = ref<{ type: PieceSymbol; color: 'w' | 'b' } | null>(null)
+
+// Drawing arrows and highlights state
+type ArrowColor = 'green' | 'red' | 'yellow' | 'blue'
+type Arrow = { from: string; to: string; color: ArrowColor }
+type Highlight = { square: string; color: ArrowColor }
+
+const arrows = ref<Arrow[]>([])
+const highlights = ref<Highlight[]>([])
+const drawingArrow = ref<{ from: string; color: ArrowColor } | null>(null)
+const isRightMouseDown = ref(false)
+
+// Chat state
+const chatMessages = ref<any[]>([])
+const chatInput = ref('')
+const showChat = ref(false)
+const chatContainer = ref<HTMLElement | null>(null)
+const unreadMessages = ref(0)
 
 // Timer and subscription
 let gameTimer: ReturnType<typeof setInterval> | null = null
 let unsubscribe: (() => void) | null = null
+let chatUnsubscribe: (() => void) | null = null
 
 // Connection status
 const connectionStatus = ref('Connecting...')
@@ -457,7 +647,13 @@ watch(selectedSquare, (newSquare) => {
 const boardSquares = computed((): BoardSquare[] => {
   const computeStart = performance.now()
   const squares: BoardSquare[] = []
-  const board = game.value.board()
+  
+  // Use review board if in review mode, otherwise use current game
+  const currentGame = reviewMode.value && reviewMoveIndex.value !== null 
+    ? getGameAtMove(reviewMoveIndex.value) 
+    : game.value
+  
+  const board = currentGame.board()
   
   const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
   const ranks = myColor.value === 'white' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8]
@@ -466,23 +662,22 @@ const boardSquares = computed((): BoardSquare[] => {
     const rank = ranks[rankIndex]
     for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
       const file = files[fileIndex]
-      if (rank !== undefined && file !== undefined) {
-        const boardRank = 8 - rank
+      if (rank !== undefined && file !== undefined) {        const boardRank = 8 - rank
         const boardFile = fileIndex
         const piece = board[boardRank] ? board[boardRank][boardFile] : null
         const squareName = `${file}${rank}`
         
-        // Use cached legal moves instead of recalculating for every square
-        const isLegalMove = selectedSquare.value ? legalMovesCache.value.has(squareName) : false
+        // Disable legal moves in review mode
+        const isLegalMove = !reviewMode.value && selectedSquare.value ? legalMovesCache.value.has(squareName) : false
         
         squares.push({
           file,
           rank,
           piece,
-          isSelected: selectedSquare.value === squareName,
+          isSelected: !reviewMode.value && selectedSquare.value === squareName,
           isLegalMove,
-          isLastMove: gameState.value?.lastMove === squareName
-        })
+          isLastMove: !reviewMode.value && gameState.value?.lastMove === squareName
+        } as any)
       }
     }
   }
@@ -624,40 +819,43 @@ const makeMove = async (fromSquare: string, toSquare: string) => {
 }
 
 const handleSquareClick = (square: BoardSquare) => {
-  const clickStart = performance.now()
-  console.log(`[PERF] Click started on ${square.file}${square.rank}`)
+  // Clear arrows and highlights on left click
+  clearAllDrawings()
   
-  // Don't allow moves if it's not our turn or game isn't active
-  if (!isMyTurn.value || gameState.value?.status !== 'active') {
-    console.log(`[PERF] Click ignored - not my turn or game not active`)
+  // Don't allow moves in review mode
+  if (reviewMode.value) {
+    console.log(`[PERF] Click ignored - in review mode`)
     return
   }
   
+  const clickStart = performance.now()
+  console.log(`[PERF] Click started on ${square.file}${square.rank}`)
+  
   const squareName = `${square.file}${square.rank}`
   
-  if (selectedSquare.value) {
-    // Try to make a move
-    const from = selectedSquare.value
-    const to = squareName
-    
-    // Check if this is a valid move using isLegalMove from boardSquares
-    // This avoids recalculating legal moves on every click
-    if (square.isLegalMove) {
-      console.log(`[PERF] Making move took: ${(performance.now() - clickStart).toFixed(2)}ms`)
-      makeMove(from, to)
-    } else if (square.piece && square.piece.color === (myColor.value === 'white' ? 'w' : 'b')) {
-      // Select different piece
+  // If it's my turn, handle normal move
+  if (isMyTurn.value && gameState.value?.status === 'active') {
+    if (selectedSquare.value) {
+      // Try to make a move
+      const from = selectedSquare.value
+      const to = squareName
+      
+      if (square.isLegalMove) {
+        console.log(`[PERF] Making move took: ${(performance.now() - clickStart).toFixed(2)}ms`)
+        makeMove(from, to)
+      } else if (square.piece && square.piece.color === (myColor.value === 'white' ? 'w' : 'b')) {
+        // Select different piece
+        selectedSquare.value = squareName
+        console.log(`[PERF] Re-selection took: ${(performance.now() - clickStart).toFixed(2)}ms`)
+      } else {
+        // Invalid move, deselect
+        selectedSquare.value = null
+        console.log(`[PERF] Deselect took: ${(performance.now() - clickStart).toFixed(2)}ms`)
+      }    } else if (square.piece && square.piece.color === (myColor.value === 'white' ? 'w' : 'b')) {
+      // Select piece
       selectedSquare.value = squareName
-      console.log(`[PERF] Re-selection took: ${(performance.now() - clickStart).toFixed(2)}ms`)
-    } else {
-      // Invalid move, deselect
-      selectedSquare.value = null
-      console.log(`[PERF] Deselect took: ${(performance.now() - clickStart).toFixed(2)}ms`)
+      console.log(`[PERF] Selection took: ${(performance.now() - clickStart).toFixed(2)}ms`)
     }
-  } else if (square.piece && square.piece.color === (myColor.value === 'white' ? 'w' : 'b')) {
-    // Select piece
-    selectedSquare.value = squareName
-    console.log(`[PERF] Selection took: ${(performance.now() - clickStart).toFixed(2)}ms`)
   }
 }
 
@@ -706,6 +904,243 @@ const formatGameTime = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
+// Review mode functions
+const getGameAtMove = (moveIndex: number) => {
+  const reviewGame = new Chess()
+  
+  if (!gameState.value?.moveHistory) return reviewGame
+  
+  // Play moves up to the selected index
+  for (let i = 0; i <= moveIndex; i++) {
+    const move = gameState.value.moveHistory[i]
+    if (move) {
+      try {
+        reviewGame.move(move)
+      } catch (error) {
+        console.error(`Error playing move ${i}: ${move}`, error)
+        break
+      }
+    }
+  }
+  
+  return reviewGame
+}
+
+const goToPreviousMove = () => {
+  if (!gameState.value?.moveHistory || gameState.value.moveHistory.length === 0) return
+  
+  if (!reviewMode.value) {
+    // Enter review mode at the last move
+    reviewMode.value = true
+    reviewMoveIndex.value = gameState.value.moveHistory.length - 2
+  } else if (reviewMoveIndex.value !== null && reviewMoveIndex.value > -1) {
+    reviewMoveIndex.value--
+  }
+}
+
+const goToNextMove = () => {
+  if (!gameState.value?.moveHistory || !reviewMode.value || reviewMoveIndex.value === null) return
+  
+  if (reviewMoveIndex.value < gameState.value.moveHistory.length - 1) {
+    reviewMoveIndex.value++
+  } else {
+    // Exit review mode if we're at the latest move
+    exitReviewMode()
+  }
+}
+
+const exitReviewMode = () => {
+  reviewMode.value = false
+  reviewMoveIndex.value = null
+}
+
+const goToMove = (moveIndex: number) => {
+  if (!gameState.value?.moveHistory) return
+  reviewMode.value = true
+  reviewMoveIndex.value = moveIndex
+}
+
+// Drawing arrows and highlights functions
+const getSquareHighlight = (square: string): ArrowColor | null => {
+  const highlight = highlights.value.find(h => h.square === square)
+  return highlight ? highlight.color : null
+}
+
+const getHighlightClass = (color: ArrowColor): string => {
+  const classes = {
+    green: 'bg-green-500/40',
+    red: 'bg-red-500/40',
+    yellow: 'bg-yellow-500/40',
+    blue: 'bg-blue-500/40'
+  }
+  return classes[color]
+}
+
+const getArrowColor = (color: ArrowColor): string => {
+  const colors = {
+    green: 'rgba(34, 197, 94, 0.8)',
+    red: 'rgba(239, 68, 68, 0.8)',
+    yellow: 'rgba(234, 179, 8, 0.8)',
+    blue: 'rgba(59, 130, 246, 0.8)'
+  }
+  return colors[color]
+}
+
+const getSquareCenter = (square: string): { x: number; y: number } => {
+  const file = square[0]
+  const rank = parseInt(square[1] || '1')
+  
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+  const fileIndex = files.indexOf(file || 'a')
+  
+  // Adjust based on board orientation
+  let x, y
+  if (myColor.value === 'white') {
+    x = (fileIndex + 0.5) * 12.5  // 100 / 8 = 12.5
+    y = (8 - rank + 0.5) * 12.5
+  } else {
+    x = (7 - fileIndex + 0.5) * 12.5
+    y = (rank - 0.5) * 12.5
+  }
+  
+  return { x, y }
+}
+
+const getCurrentArrowColor = (event: MouseEvent): ArrowColor => {
+  // Shift key = red, Alt key = blue, Ctrl key = yellow, default = green
+  if (event.shiftKey) return 'red'
+  if (event.altKey) return 'blue'
+  if (event.ctrlKey) return 'yellow'
+  return 'green'
+}
+
+const handleRightMouseDown = (event: MouseEvent, square: BoardSquare) => {
+  event.preventDefault()
+  isRightMouseDown.value = true
+  
+  const squareName = `${square.file}${square.rank}`
+  const color = getCurrentArrowColor(event)
+  
+  drawingArrow.value = { from: squareName, color }
+}
+
+const handleRightMouseUp = (event: MouseEvent, square: BoardSquare) => {
+  event.preventDefault()
+  
+  if (!isRightMouseDown.value || !drawingArrow.value) return
+  
+  const squareName = `${square.file}${square.rank}`
+  const { from, color } = drawingArrow.value
+  
+  if (from === squareName) {
+    // Same square - toggle highlight
+    const existingIndex = highlights.value.findIndex(h => h.square === squareName && h.color === color)
+    if (existingIndex >= 0) {
+      highlights.value.splice(existingIndex, 1)
+    } else {
+      // Remove any existing highlight on this square
+      const anyHighlightIndex = highlights.value.findIndex(h => h.square === squareName)
+      if (anyHighlightIndex >= 0) {
+        highlights.value.splice(anyHighlightIndex, 1)
+      }
+      highlights.value.push({ square: squareName, color })
+    }
+  } else {
+    // Different square - toggle arrow
+    const existingIndex = arrows.value.findIndex(a => a.from === from && a.to === squareName && a.color === color)
+    if (existingIndex >= 0) {
+      arrows.value.splice(existingIndex, 1)
+    } else {
+      // Remove any existing arrow with same from/to
+      const anyArrowIndex = arrows.value.findIndex(a => a.from === from && a.to === squareName)
+      if (anyArrowIndex >= 0) {
+        arrows.value.splice(anyArrowIndex, 1)
+      }
+      arrows.value.push({ from, to: squareName, color })
+    }
+  }
+  
+  drawingArrow.value = null
+  isRightMouseDown.value = false
+}
+
+const handleMouseEnter = (square: BoardSquare) => {
+  // Optional: Show preview arrow while dragging
+}
+
+const clearAllDrawings = () => {
+  arrows.value = []
+  highlights.value = []
+}
+
+// Drag and drop handlers
+const canDragPiece = (square: BoardSquare) => {
+  if (reviewMode.value) return false
+  if (!square.piece) return false
+  
+  const pieceColor = square.piece.color === 'w' ? 'white' : 'black'
+  
+  // Allow dragging if it's my turn (normal move) or not my turn (premove)
+  return pieceColor === myColor.value && gameState.value?.status === 'active'
+}
+
+const handleDragStart = (event: DragEvent, square: BoardSquare) => {
+  if (!canDragPiece(square)) {
+    event.preventDefault()
+    return
+  }
+  
+  const squareName = `${square.file}${square.rank}`
+  draggedSquare.value = squareName
+  draggedPiece.value = square.piece
+  
+  // Set drag image to be transparent (piece stays visible on board)
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    const img = new Image()
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs='
+    event.dataTransfer.setDragImage(img, 0, 0)
+  }
+    // Trigger piece selection logic
+  if (isMyTurn.value) {
+    selectedSquare.value = squareName
+  }
+}
+
+const handleDragOver = (event: DragEvent, square: BoardSquare) => {
+  if (!draggedSquare.value) return
+  
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+const handleDrop = (event: DragEvent, square: BoardSquare) => {
+  event.preventDefault()
+  
+  if (!draggedSquare.value) return
+  
+  const fromSquare = draggedSquare.value
+  const toSquare = `${square.file}${square.rank}`
+    // Handle the move/premove
+  if (isMyTurn.value) {
+    // Normal move
+    if (square.isLegalMove) {
+      makeMove(fromSquare, toSquare)
+    }
+    selectedSquare.value = null
+  }
+  
+  // Reset drag state
+  draggedSquare.value = null
+  draggedPiece.value = null
+}
+
+const handleDragEnd = () => {  draggedSquare.value = null
+  draggedPiece.value = null
+}
+
 const setupSubscription = () => {
   const { $convex } = useNuxtApp()
   
@@ -716,7 +1151,7 @@ const setupSubscription = () => {
     }
   }, 1000)
   
-  // Set up real-time subscription
+  // Set up real-time subscription for game state
   unsubscribe = $convex.onUpdate(
     api.chess_games.getGameById, 
     { gameId: props.gameId },
@@ -767,17 +1202,19 @@ const setupSubscription = () => {
         createdAt: updatedGame.createdAt,
         moveHistory: updatedGame.moveHistory || []
       }
-      
-      // Update chess.js instance with new FEN
+        // Update chess.js instance with new FEN
       try {
         game.value = new Chess(updatedGame.fen)
         
         // Log debug information about the game state
         console.log(`Updated game - My color: ${myColor.value}, Current turn: ${updatedGame.currentTurn}`)
         console.log(`Is my turn now: ${updatedGame.currentTurn === myColor.value}`)
-        
-        // Reset selected square when game state changes
+          // Reset selected square when game state changes
         selectedSquare.value = null
+          // Exit review mode when game updates
+        if (reviewMode.value) {
+          exitReviewMode()
+        }
       } catch (error) {
         console.error('Error updating chess.js instance:', error)
       }
@@ -892,7 +1329,110 @@ const respondToDrawOffer = async (accepted: boolean) => {
     connectionStatus.value = 'Connected'
     
     // Re-enable the draw offer if it failed
-    drawOfferInbound.value = true
+    drawOfferInbound.value = true  }
+}
+
+// Chat functions
+const formatMessageTime = (timestamp: number) => {
+  const date = new Date(timestamp)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const loadChatMessages = async () => {
+  try {
+    const { $convex } = useNuxtApp()
+    const messages = await $convex.query(api.chat.getMessages, {
+      gameId: props.gameId
+    })
+    chatMessages.value = messages
+    
+    // Scroll to bottom
+    nextTick(() => {
+      if (chatContainer.value) {
+        chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+      }
+    })
+  } catch (error) {
+    console.error('Failed to load chat messages:', error)
+  }
+}
+
+const setupChatSubscription = () => {
+  const { $convex } = useNuxtApp()
+  
+  // Set up real-time subscription for chat messages
+  chatUnsubscribe = $convex.onUpdate(
+    api.chat.getMessages,
+    { gameId: props.gameId },
+    (messages) => {
+      if (!messages) return
+      
+      console.log(`Received ${messages.length} chat messages`)
+      
+      // Track unread messages if chat is hidden
+      if (!showChat.value && messages.length > chatMessages.value.length) {
+        unreadMessages.value += (messages.length - chatMessages.value.length)
+      }
+      
+      chatMessages.value = messages
+      
+      // Auto-scroll to bottom when new message arrives
+      nextTick(() => {
+        if (chatContainer.value && showChat.value) {
+          chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+        }
+      })
+    }
+  )
+}
+
+const sendChatMessage = async () => {
+  if (!chatInput.value.trim() || !user.value) return
+  
+  try {
+    const { $convex } = useNuxtApp()
+    
+    await $convex.mutation('chat:sendMessage', {
+      gameId: props.gameId,
+      userId: user.value.id,
+      userName: user.value.name || 'Anonymous',
+      message: chatInput.value.trim()
+    })
+    
+    chatInput.value = ''
+    
+    // No need to reload messages - subscription will handle it
+  } catch (error) {
+    console.error('Failed to send message:', error)
+    alert('Failed to send message')
+  }
+}
+
+const toggleChat = () => {
+  showChat.value = !showChat.value
+  
+  // Clear unread count when opening chat
+  if (showChat.value) {
+    unreadMessages.value = 0
+    
+    // Scroll to bottom when opening chat
+    if (chatMessages.value.length > 0) {
+      nextTick(() => {
+        if (chatContainer.value) {
+          chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+        }
+      })
+    }
   }
 }
 
@@ -902,15 +1442,50 @@ const cleanup = () => {
     unsubscribe = null
   }
   
+  if (chatUnsubscribe) {
+    chatUnsubscribe()
+    chatUnsubscribe = null
+  }
+  
   if (gameTimer) {
     clearInterval(gameTimer)
     gameTimer = null
+  }
+  
+  // Remove keyboard event listener
+  window.removeEventListener('keydown', handleKeyDown)
+}
+
+// Keyboard navigation handler
+const handleKeyDown = (event: KeyboardEvent) => {
+  // Only handle arrow keys if we have move history
+  if (!gameState.value?.moveHistory || gameState.value.moveHistory.length === 0) return
+  
+  switch (event.key) {
+    case 'ArrowLeft':
+      event.preventDefault()
+      goToPreviousMove()
+      break
+    case 'ArrowRight':
+      event.preventDefault()
+      goToNextMove()
+      break
+    case 'Escape':
+      if (reviewMode.value) {
+        event.preventDefault()
+        exitReviewMode()
+      }
+      break
   }
 }
 
 onMounted(async () => {
   await loadGameState()
   setupSubscription()
+  setupChatSubscription()
+  
+  // Add keyboard event listener
+  window.addEventListener('keydown', handleKeyDown)
 })
 
 onBeforeUnmount(() => {
