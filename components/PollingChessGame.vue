@@ -94,17 +94,13 @@
               :draw-offer-inbound="drawOfferInbound"
               @offer-draw="offerDraw"
               @resign="confirmResign"
-            />
-
-            <!-- Chat Component -->
+            />            <!-- Chat Component -->
             <ChessGameChat
               :messages="chatMessages"
               :show-chat="showChat"
               :unread-messages="unreadMessages"
-              :chat-input="chatInput"
               :current-user-id="user?.id"
               @toggle-chat="toggleChat"
-              @update:chat-input="chatInput = $event"
               @send-message="sendChatMessage"
             />
           </div>
@@ -248,9 +244,7 @@ const isRightMouseDown = ref(false)
 
 // Chat state
 const chatMessages = ref<any[]>([])
-const chatInput = ref('')
 const showChat = ref(false)
-const chatContainer = ref<HTMLElement | null>(null)
 const unreadMessages = ref(0)
 
 // Timer and subscription
@@ -977,15 +971,8 @@ const loadChatMessages = async () => {
     const messages = await $convex.query(api.chat.getMessages, {
       gameId: props.gameId
     })
-    
-    chatMessages.value = messages || []
-    
-    // Scroll to bottom
-    nextTick(() => {
-      if (chatContainer.value) {
-        chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-      }
-    })
+      chatMessages.value = messages || []
+    // Scroll handled by ChessGameChat component
   } catch (error) {
     console.error('Failed to load chat messages:', error)
     // Set empty array on error to avoid undefined issues
@@ -1004,26 +991,19 @@ const setupChatSubscription = () => {
       if (!messages) return
       
       console.log(`Received ${messages.length} chat messages`)
-      
-      // Track unread messages if chat is hidden
+        // Track unread messages if chat is hidden
       if (!showChat.value && messages.length > chatMessages.value.length) {
         unreadMessages.value += (messages.length - chatMessages.value.length)
       }
       
       chatMessages.value = messages
-      
-      // Auto-scroll to bottom when new message arrives
-      nextTick(() => {
-        if (chatContainer.value && showChat.value) {
-          chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-        }
-      })
+      // Auto-scroll handled by ChessGameChat component
     }
   )
 }
 
-const sendChatMessage = async () => {
-  if (!chatInput.value.trim() || !user.value) return
+const sendChatMessage = async (message: string) => {
+  if (!message.trim() || !user.value) return
   
   try {
     const { $convex } = useNuxtApp()
@@ -1032,16 +1012,15 @@ const sendChatMessage = async () => {
       gameId: props.gameId,
       userId: user.value.id,
       userName: user.value.name || 'Anonymous',
-      message: chatInput.value.trim()
+      message: message.trim()
     }
     
     console.log('Sending chat message:', messageData)
     
     // Use proper API reference
     const result = await $convex.mutation(api.chat.sendMessage, messageData)
-      console.log('Message sent successfully:', result)
     
-    chatInput.value = ''
+    console.log('Message sent successfully:', result)
     
     // No need to reload messages - subscription will handle it
   } catch (error) {
@@ -1063,19 +1042,10 @@ const sendChatMessage = async () => {
 
 const toggleChat = () => {
   showChat.value = !showChat.value
-  
-  // Clear unread count when opening chat
+    // Clear unread count when opening chat
   if (showChat.value) {
     unreadMessages.value = 0
-    
-    // Scroll to bottom when opening chat
-    if (chatMessages.value.length > 0) {
-      nextTick(() => {
-        if (chatContainer.value) {
-          chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-        }
-      })
-    }
+    // Scroll handled by ChessGameChat component
   }
 }
 
