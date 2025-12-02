@@ -165,4 +165,15 @@ export default defineSchema({
     .index("by_category_difficulty", ["category", "difficulty"])
     .index("by_bestScore", ["bestScore"])
     .index("by_bestAccuracy", ["bestAccuracy"]),
+
+  // Chat messages for games
+  chat_messages: defineTable({
+    gameId: v.string(),
+    userId: v.string(),
+    userName: v.string(),
+    message: v.string(),
+    timestamp: v.number(),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_timestamp", ["timestamp"]),
 });
