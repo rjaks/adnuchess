@@ -24,6 +24,7 @@ import type * as puzzle_admin from "../puzzle_admin.js";
 import type * as quiz from "../quiz.js";
 import type * as quiz_admin from "../quiz_admin.js";
 import type * as test from "../test.js";
+import type * as utils_timerHelpers from "../utils/timerHelpers.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   quiz: typeof quiz;
   quiz_admin: typeof quiz_admin;
   test: typeof test;
+  "utils/timerHelpers": typeof utils_timerHelpers;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

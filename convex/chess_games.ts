@@ -1,6 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Chess } from "chess.js";
+import { 
+  initializeTimers, 
+  parseTimeControl, 
+  updateTimersOnMove,
+  checkForTimeout,
+  type TimeControl 
+} from "./utils/timerHelpers";
 
 export const getGameById = query({
   args: { gameId: v.string() },
@@ -43,8 +50,9 @@ export const createGame = mutation({
       color: v.union(v.literal("white"), v.literal("black"))
     }),
     gameMode: v.string(),
+    timeControlString: v.optional(v.string()), // e.g., "5+0", "10+5", "15+10"
   },
-  handler: async (ctx, { gameId, player1, player2, gameMode }) => {
+  handler: async (ctx, { gameId, player1, player2, gameMode, timeControlString }) => {
     console.log(`Creating game ${gameId} with players ${player1.id} and ${player2.id}`);
     
     const now = Date.now();
@@ -80,7 +88,22 @@ export const createGame = mutation({
     const initialFen = chess.fen();
     console.log(`Initial FEN: ${initialFen}`);
     
-    const gameDoc = {
+    // Parse time control if provided
+    let timeControl: TimeControl | null = null;
+    let timerState = null;
+    
+    if (timeControlString) {
+      try {
+        timeControl = parseTimeControl(timeControlString);
+        timerState = initializeTimers(timeControl, now);
+        console.log(`Time control initialized: ${timeControlString} -> Base: ${timeControl.baseTimeMs}ms, Increment: ${timeControl.incrementMs}ms`);
+      } catch (error) {
+        console.error(`Failed to parse time control: ${timeControlString}`, error);
+        // Continue without time control rather than failing
+      }
+    }
+    
+    const gameDoc: any = {
       gameId,
       fen: initialFen,
       lastMove: "",  // Use empty string instead of null for consistency
@@ -93,6 +116,15 @@ export const createGame = mutation({
       createdAt: now,
       moveHistory: []
     };
+    
+    // Add timer fields if time control is enabled
+    if (timeControl && timerState) {
+      gameDoc.timeControl = timeControl;
+      gameDoc.whiteTimeMs = timerState.whiteTimeMs;
+      gameDoc.blackTimeMs = timerState.blackTimeMs;
+      gameDoc.lastMoveTimestamp = timerState.lastMoveTimestamp;
+      gameDoc.gameStartTimestamp = timerState.gameStartTimestamp;
+    }
     
     console.log(`Creating new game with current turn: ${gameDoc.currentTurn}`);
     
@@ -141,9 +173,42 @@ export const makeMove = mutation({
     const playerColor = isPlayer1 ? game.player1.color : game.player2.color;
     
     console.log(`Player color: ${playerColor}, Current turn: ${game.currentTurn}`);
-    
-    if (game.currentTurn !== playerColor) {
+      if (game.currentTurn !== playerColor) {
       throw new Error(`It is not your turn. Current turn is ${game.currentTurn}, your color is ${playerColor}`);
+    }
+      // Check for timeout BEFORE validating move (if time control is enabled)
+    const now = Date.now();
+    
+    if (game.timeControl && game.timeControl.type !== 'none') {
+      const timerState = {
+        whiteTimeMs: game.whiteTimeMs || game.timeControl.baseTimeMs,
+        blackTimeMs: game.blackTimeMs || game.timeControl.baseTimeMs,
+        lastMoveTimestamp: game.lastMoveTimestamp || 0,
+        gameStartTimestamp: game.gameStartTimestamp || 0
+      };
+      
+      const timerUpdate = updateTimersOnMove(
+        timerState,
+        game.timeControl,
+        playerColor,
+        now
+      );
+        if (timerUpdate.timedOut && timerUpdate.timeoutWinner) {
+        console.log(`[Convex] Player ${playerColor} timed out! Winner: ${timerUpdate.timeoutWinner}`);
+        
+        // Player ran out of time before making move
+        await ctx.db.patch(game._id, {
+          status: "finished" as const,
+          winner: timerUpdate.timeoutWinner === 'white' ? game.player1.id : game.player2.id,
+          endReason: `timeout_${playerColor}`,
+          timeoutWinner: timerUpdate.timeoutWinner,
+          whiteTimeMs: timerUpdate.whiteTimeMs,
+          blackTimeMs: timerUpdate.blackTimeMs,
+          lastMoveTimestamp: now
+        });
+        
+        throw new Error(`Time expired! ${timerUpdate.timeoutWinner} wins by timeout`);
+      }
     }
     
     // Validate and apply move
@@ -158,26 +223,69 @@ export const makeMove = mutation({
     if (!moveResult) {
       throw new Error(`Invalid move: ${move}`);
     }
-    
-    // Debug info after making move
+      // Debug info after making move
     console.log(`New FEN after move: ${chess.fen()}`);
     console.log(`New turn in chess.js: ${chess.turn() === 'w' ? 'white' : 'black'}`);
     
-    // Update game state
-    const now = Date.now();
-    
     // Determine next turn
-    const nextTurn = game.currentTurn === "white" ? "black" : "white";
+    const nextTurn: 'white' | 'black' = game.currentTurn === "white" ? "black" : "white";
     console.log(`Switching turn from ${game.currentTurn} to ${nextTurn}`);
-    
-    // Build update object
-    const patch = {
+      // Build update object
+    const patch: any = {
       fen: chess.fen(),
       lastMove: move,
       lastMoveTime: now,
       currentTurn: nextTurn,
       moveHistory: [...game.moveHistory, move]
     };
+    
+    // Log game time control state
+    console.log(`[Convex] Game time control check:`, {
+      hasTimeControl: !!game.timeControl,
+      timeControlType: game.timeControl?.type,
+      whiteTimeMs: game.whiteTimeMs,
+      blackTimeMs: game.blackTimeMs,
+      lastMoveTimestamp: game.lastMoveTimestamp
+    });
+      // Update timer fields if time control is enabled
+    if (game.timeControl && game.timeControl.type !== 'none') {
+      const timerState = {
+        whiteTimeMs: game.whiteTimeMs || game.timeControl.baseTimeMs,
+        blackTimeMs: game.blackTimeMs || game.timeControl.baseTimeMs,
+        lastMoveTimestamp: game.lastMoveTimestamp || 0,
+        gameStartTimestamp: game.gameStartTimestamp || 0
+      };
+      
+      const timerUpdate = updateTimersOnMove(
+        timerState,
+        game.timeControl,
+        playerColor,
+        now
+      );
+        // This should not happen as we already checked, but be defensive
+      if (timerUpdate.timedOut) {
+        console.error('[Convex] Unexpected timeout after move validation');
+      }
+      
+      // Update timer fields in patch
+      patch.whiteTimeMs = timerUpdate.whiteTimeMs;
+      patch.blackTimeMs = timerUpdate.blackTimeMs;
+      patch.lastMoveTimestamp = timerUpdate.lastMoveTimestamp;
+      
+      // Set gameStartTimestamp on White's first move (when it was 0)
+      if (timerState.gameStartTimestamp === 0 && playerColor === 'white') {
+        patch.gameStartTimestamp = now;
+        console.log(`[Convex] Starting game clock on White's first move at ${now}`);
+      }
+      
+      console.log(`[Convex] Timer update after move:`, {
+        whiteTimeMs: patch.whiteTimeMs,
+        blackTimeMs: patch.blackTimeMs,
+        lastMoveTimestamp: patch.lastMoveTimestamp,
+        gameStartTimestamp: patch.gameStartTimestamp,
+        movingPlayer: playerColor
+      });
+    }
     
     // Check if there are any legal moves for the opponent
     // IMPORTANT: Avoiding any reference to game_over() which causes issues
@@ -213,10 +321,10 @@ export const makeMove = mutation({
         // @ts-ignore
         patch.winner = "draw";
         console.log("[Convex] Game ended in stalemate (draw)");
-      }
-    }
+      }    }
     
     // Update the game in database
+    console.log(`[Convex] About to patch game with:`, patch);
     await ctx.db.patch(game._id, patch);
     
     console.log("Game updated successfully");
@@ -226,6 +334,52 @@ export const makeMove = mutation({
       gameId,
       nextTurn
     };
+  },
+});
+
+export const checkTimeout = mutation({
+  args: { gameId: v.string() },
+  handler: async (ctx, { gameId }) => {
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+      .first();
+    
+    if (!game) {
+      throw new Error(`Game not found: ${gameId}`);
+    }
+      // Only check timeout for active games with time control
+    if (game.status !== 'active' || !game.timeControl || game.timeControl.type === 'none') {
+      return { timedOut: false };
+    }
+    
+    const timerState = {
+      whiteTimeMs: game.whiteTimeMs || game.timeControl.baseTimeMs,
+      blackTimeMs: game.blackTimeMs || game.timeControl.baseTimeMs,
+      lastMoveTimestamp: game.lastMoveTimestamp || 0,
+      gameStartTimestamp: game.gameStartTimestamp || 0
+    };
+    
+    const timeoutWinner = checkForTimeout(timerState, game.currentTurn, Date.now());
+    
+    if (timeoutWinner) {
+      console.log(`[Convex Heartbeat] Timeout detected! Winner: ${timeoutWinner}`);
+      
+      // Update game to finished state
+      await ctx.db.patch(game._id, {
+        status: "finished" as const,
+        winner: timeoutWinner === 'white' ? game.player1.id : game.player2.id,
+        endReason: `timeout_${game.currentTurn}`,
+        timeoutWinner: timeoutWinner,
+        whiteTimeMs: game.currentTurn === 'white' ? 0 : (game.whiteTimeMs || game.timeControl.baseTimeMs),
+        blackTimeMs: game.currentTurn === 'black' ? 0 : (game.blackTimeMs || game.timeControl.baseTimeMs),
+        lastMoveTimestamp: Date.now()
+      });
+      
+      return { timedOut: true, winner: timeoutWinner };
+    }
+    
+    return { timedOut: false };
   },
 });
 

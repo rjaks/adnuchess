@@ -61,14 +61,13 @@ export const sendMessage = mutation({
     try {
       // Create the message
       const messageId = await ctx.db.insert("chat_messages", messageData)
-      
-      console.log('Message inserted successfully with ID:', messageId)
+        console.log('Message inserted successfully with ID:', messageId)
       console.log('=== sendMessage END (SUCCESS) ===')
       return { success: true, messageId }
     } catch (error) {
       console.error('=== sendMessage END (ERROR) ===')
-      console.error('Error type:', error?.constructor?.name)
-      console.error('Error message:', error?.message)
+      console.error('Error type:', (error as any)?.constructor?.name)
+      console.error('Error message:', (error as any)?.message)
       console.error('Full error:', error)
       throw error
     }

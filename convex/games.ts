@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Chess } from "chess.js";
+import { initializeTimers, parseTimeControl } from "./utils/timerHelpers";
 
 export const getGameById = query({
   args: { gameId: v.string() },
@@ -43,8 +44,9 @@ export const createGame = mutation({
       color: v.union(v.literal("white"), v.literal("black"))
     }),
     gameMode: v.string(),
+    timeControlString: v.optional(v.string()), // e.g., "5+3" for 5 min + 3 sec increment
   },
-  handler: async (ctx, { gameId, player1, player2, gameMode }) => {
+  handler: async (ctx, { gameId, player1, player2, gameMode, timeControlString }) => {
     console.log(`Creating game ${gameId} with players ${player1.id} and ${player2.id}`);
     
     const now = Date.now();
@@ -73,12 +75,29 @@ export const createGame = mutation({
       color: "black" as const
     };
     
-    console.log(`Player 1 (${fixedPlayer1.name}): white, Player 2 (${fixedPlayer2.name}): black`);
-    
-    // Initialize a new chess game
+    console.log(`Player 1 (${fixedPlayer1.name}): white, Player 2 (${fixedPlayer2.name}): black`);    // Initialize a new chess game
     const chess = new Chess();
     const initialFen = chess.fen();
     console.log(`Initial FEN: ${initialFen}`);
+    
+    // Initialize timer fields if timeControlString is provided
+    let timerFields = {};
+    if (timeControlString) {
+      const timeControl = parseTimeControl(timeControlString);
+      const timerState = initializeTimers(timeControl, now);
+      timerFields = {
+        timeControl: {
+          baseTimeMs: timeControl.baseTimeMs,
+          incrementMs: timeControl.incrementMs,
+          type: timeControl.type
+        },
+        whiteTimeMs: timerState.whiteTimeMs,
+        blackTimeMs: timerState.blackTimeMs,
+        lastMoveTimestamp: timerState.lastMoveTimestamp,
+        gameStartTimestamp: timerState.gameStartTimestamp,
+        timeoutWinner: null
+      };
+    }
     
     const gameDoc = {
       gameId,
@@ -91,10 +110,14 @@ export const createGame = mutation({
       status: "active" as const,
       gameMode,
       createdAt: now,
-      moveHistory: []
+      moveHistory: [],
+      ...timerFields // Add timer fields if present
     };
     
     console.log(`Creating new game with current turn: ${gameDoc.currentTurn}`);
+    if (timeControlString) {
+      console.log(`Time control: ${timeControlString}`, timerFields);
+    }
     
     return await ctx.db.insert("games", gameDoc);
   },
@@ -255,12 +278,11 @@ export const makeMove = mutation({
     if (legalMoves.length === 0) {
       console.log("[Convex] No legal moves available, game is over");
       patch.status = "finished";
-      
-      // Check if the king is in check to determine checkmate vs stalemate
+        // Check if the king is in check to determine checkmate vs stalemate
       let inCheck = false;
       try {
         // Use the correct chess.js method for checking if king is in check
-        inCheck = chess.in_check();
+        inCheck = chess.inCheck();
       } catch (error) {
         console.error("[Convex] Error checking if king is in check:", error);
       }

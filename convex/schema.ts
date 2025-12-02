@@ -49,6 +49,23 @@ export default defineSchema({
     gameMode: v.string(),
     createdAt: v.number(),
     moveHistory: v.array(v.string()),
+    
+    // Timer fields (optional for backward compatibility)
+    timeControl: v.optional(v.object({
+      baseTimeMs: v.number(),
+      incrementMs: v.number(),
+      type: v.union(
+        v.literal("none"),
+        v.literal("standard"),
+        v.literal("increment"),
+        v.literal("delay")
+      )
+    })),
+    whiteTimeMs: v.optional(v.number()),
+    blackTimeMs: v.optional(v.number()),
+    lastMoveTimestamp: v.optional(v.number()),
+    gameStartTimestamp: v.optional(v.number()),
+    timeoutWinner: v.optional(v.union(v.literal("white"), v.literal("black"))),
   })
     .index("by_gameId", ["gameId"])
     .index("by_player", ["player1.id"])

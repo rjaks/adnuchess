@@ -37,27 +37,21 @@
             </p>            <p class="text-xs text-slate-500">{{ gameState?.gameMode }} • {{ formatGameTime(gameTime) }}</p>
           </div>
         </div>
-      </div><!-- Chess Board and Move History -->
-      <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">
-        <!-- Opponent Info -->
-        <div class="mb-6 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-full bg-[#021d94]/10 flex items-center justify-center">
-              <span class="text-sm font-bold text-[#021d94]">{{ opponentInitials }}</span>
-            </div>
-            <div>
-              <p class="font-semibold text-slate-900">{{ opponent?.name || 'Opponent' }}</p>
-              <p class="text-xs text-slate-500">{{ opponent?.color === 'white' ? 'White' : 'Black' }}</p>
-            </div>
-          </div>
-          <div class="text-right">
-            <div v-if="gameState?.status === 'finished'" class="text-sm font-semibold">
-              <span v-if="gameState.winner === 'draw'" class="text-amber-600">Draw</span>
-              <span v-else-if="gameState.winner === user?.id" class="text-green-600">You Won!</span>
-              <span v-else class="text-red-600">You Lost</span>
-            </div>
-          </div>
-        </div>        <!-- Board and Moves Side by Side -->
+      </div>      <!-- Chess Board and Move History -->
+      <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">        <!-- Opponent Clock (Top) -->
+        <ChessClock
+          v-if="gameState?.timeControl"
+          :display-time="opponent?.color === 'white' ? whiteFormatted : blackFormatted"
+          :status="opponent?.color === 'white' ? whiteStatus : blackStatus"
+          :is-active="gameState.status === 'active' && !isMyTurn"
+          :player-name="opponent?.name || 'Opponent'"
+          :player-color="opponent?.color === 'white' ? 'White' : 'Black'"
+          :increment="gameState.timeControl.incrementMs / 1000"
+          :avatar-url="opponent?.avatarUrl"
+          class="mb-4"
+        />
+        
+        <!-- Board and Moves Side by Side -->
         <div class="flex gap-8 items-start justify-center">          <!-- Chess Board Component -->
           <ChessBoard
             :board-squares="boardSquares"
@@ -103,22 +97,20 @@
               @toggle-chat="toggleChat"
               @send-message="sendChatMessage"
             />
-          </div>
-        </div>
-
-        <!-- Current Player Info -->
-        <div class="mt-6 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-full bg-[#ffaa00]/10 flex items-center justify-center">
-              <span class="text-sm font-bold text-[#ffaa00]">{{ userInitials }}</span>
-            </div>
-            <div>
-              <p class="font-semibold text-slate-900">{{ user?.name || 'You' }}</p>
-              <p class="text-xs text-slate-500">{{ myColor === 'white' ? 'White' : 'Black' }}</p>
-            </div>
-          </div>          <div class="text-right">
-            <p class="text-sm text-slate-600">Moves: {{ gameState?.moveHistory?.length || 0 }}</p>
           </div>        </div>
+        
+        <!-- Current Player Clock (Bottom) -->
+        <ChessClock
+          v-if="gameState?.timeControl"
+          :display-time="myColor === 'white' ? whiteFormatted : blackFormatted"
+          :status="myColor === 'white' ? whiteStatus : blackStatus"
+          :is-active="gameState.status === 'active' && isMyTurn"
+          :player-name="user?.name || 'You'"
+          :player-color="myColor === 'white' ? 'White' : 'Black'"
+          :increment="gameState.timeControl.incrementMs / 1000"
+          :avatar-url="gameState.player1.id === user?.id ? gameState.player1.avatarUrl : gameState.player2.avatarUrl"
+          class="mt-4"
+        />
       </div>
       
       <!-- Draw offer modal -->
@@ -171,6 +163,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useChessClock } from '~/composables/useChessClock'
 import { Chess } from 'chess.js'
 import { api } from '~/convex/_generated/api'
 
@@ -196,13 +189,24 @@ type GameState = {
   lastMove: string | null
   lastMoveTime: number
   currentTurn: 'white' | 'black'
-  player1: { id: string; name: string; color: 'white' | 'black' }
-  player2: { id: string; name: string; color: 'white' | 'black' }
+  player1: { id: string; name: string; color: 'white' | 'black'; avatarUrl?: string }
+  player2: { id: string; name: string; color: 'white' | 'black'; avatarUrl?: string }
   status: 'waiting' | 'active' | 'finished'
   winner?: string
   gameMode: string
   createdAt: number
   moveHistory: string[]
+  // Timer fields
+  whiteTimeMs?: number
+  blackTimeMs?: number
+  timeControl?: {
+    baseTimeMs: number
+    incrementMs: number
+    type: 'bullet' | 'blitz' | 'rapid' | 'classical'
+  }
+  lastMoveTimestamp?: number
+  gameStartTimestamp?: number
+  timeoutWinner?: 'white' | 'black' | null
 }
 
 type BoardSquare = {
@@ -251,6 +255,43 @@ const unreadMessages = ref(0)
 let gameTimer: ReturnType<typeof setInterval> | null = null
 let unsubscribe: (() => void) | null = null
 let chatUnsubscribe: (() => void) | null = null
+
+// Chess Clock Composable
+const clockState = computed(() => {
+  if (!gameState.value || !gameState.value.timeControl) return null
+  
+  // Use actual server values, only fallback for initial state
+  const whiteTime = gameState.value.whiteTimeMs !== undefined 
+    ? gameState.value.whiteTimeMs 
+    : gameState.value.timeControl.baseTimeMs
+  
+  const blackTime = gameState.value.blackTimeMs !== undefined 
+    ? gameState.value.blackTimeMs 
+    : gameState.value.timeControl.baseTimeMs
+  
+  console.log('[Clock] Timer state:', {
+    whiteTimeMs: whiteTime,
+    blackTimeMs: blackTime,
+    lastMoveTimestamp: gameState.value.lastMoveTimestamp,
+    gameStartTimestamp: gameState.value.gameStartTimestamp
+  })
+  
+  return {
+    whiteTimeMs: whiteTime,
+    blackTimeMs: blackTime,
+    currentTurn: gameState.value.currentTurn,
+    lastMoveTimestamp: gameState.value.lastMoveTimestamp ?? gameState.value.gameStartTimestamp ?? gameState.value.createdAt,
+    gameStartTimestamp: gameState.value.gameStartTimestamp ?? gameState.value.createdAt,
+    isGameActive: gameState.value.status === 'active'
+  }
+})
+
+const { 
+  whiteFormatted, 
+  blackFormatted, 
+  whiteStatus, 
+  blackStatus 
+} = useChessClock(clockState)
 
 // Connection status
 const connectionStatus = ref('Connecting...')
@@ -395,19 +436,36 @@ const loadGameState = async () => {
     const response = await $convex.query(api.chess_games.getGameById, { gameId: props.gameId })
     
     if (response) {
+      // Fetch player avatars from profiles
+      const player1Profile = await $convex.query(api.profiles.getByUserId, { userId: response.player1.id })
+      const player2Profile = await $convex.query(api.profiles.getByUserId, { userId: response.player2.id })
+      
       gameState.value = {
         id: response.gameId,
         fen: response.fen,
         lastMove: response.lastMove || null,
         lastMoveTime: response.lastMoveTime,
         currentTurn: response.currentTurn,
-        player1: response.player1,
-        player2: response.player2,
+        player1: {
+          ...response.player1,
+          avatarUrl: player1Profile?.picture
+        },
+        player2: {
+          ...response.player2,
+          avatarUrl: player2Profile?.picture
+        },
         status: response.status,
         winner: response.winner,
         gameMode: response.gameMode,
         createdAt: response.createdAt,
-        moveHistory: response.moveHistory
+        moveHistory: response.moveHistory,
+        // Timer fields
+        whiteTimeMs: response.whiteTimeMs,
+        blackTimeMs: response.blackTimeMs,
+        timeControl: response.timeControl,
+        lastMoveTimestamp: response.lastMoveTimestamp,
+        gameStartTimestamp: response.gameStartTimestamp,
+        timeoutWinner: response.timeoutWinner
       }
       game.value = new Chess(response.fen)
       lastPolledTime.value = response.lastMoveTime
@@ -457,12 +515,11 @@ const makeMove = async (fromSquare: string, toSquare: string) => {
     console.log('Sending move to Convex:', {
       gameId: props.gameId,
       move: moveObj.san,
-      playerId: user.value.id
-    })
+      playerId: user.value.id    })
     
-    // First try with direct string reference
+    // Use chess_games:makeMove which has timer support
     try {
-      const result = await $convex.mutation('games:makeMove', {
+      const result = await $convex.mutation('chess_games:makeMove', {
         gameId: props.gameId,
         move: moveObj.san,
         playerId: user.value.id
@@ -818,23 +875,36 @@ const setupSubscription = () => {
       } else {
         // No draw offer active
         drawOfferInbound.value = false
-        drawOffered.value = false
-      }
+        drawOffered.value = false      }
       
       connectionStatus.value = 'Connected'
+      
       gameState.value = {
         id: updatedGame.gameId,
         fen: updatedGame.fen,
         lastMove: updatedGame.lastMove || null,
         lastMoveTime: updatedGame.lastMoveTime,
         currentTurn: updatedGame.currentTurn,
-        player1: updatedGame.player1,
-        player2: updatedGame.player2,
+        player1: {
+          ...updatedGame.player1,
+          avatarUrl: gameState.value?.player1?.avatarUrl // Preserve avatar from initial load
+        },
+        player2: {
+          ...updatedGame.player2,
+          avatarUrl: gameState.value?.player2?.avatarUrl // Preserve avatar from initial load
+        },
         status: updatedGame.status,
         winner: updatedGame.winner,
         gameMode: updatedGame.gameMode || 'standard',
         createdAt: updatedGame.createdAt,
-        moveHistory: updatedGame.moveHistory || []
+        moveHistory: updatedGame.moveHistory || [],
+        // Timer fields
+        whiteTimeMs: updatedGame.whiteTimeMs,
+        blackTimeMs: updatedGame.blackTimeMs,
+        timeControl: updatedGame.timeControl,
+        lastMoveTimestamp: updatedGame.lastMoveTimestamp,
+        gameStartTimestamp: updatedGame.gameStartTimestamp,
+        timeoutWinner: updatedGame.timeoutWinner
       }
         // Update chess.js instance with new FEN
       try {

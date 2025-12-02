@@ -305,6 +305,11 @@ const joinQueue = async () => {
         statusMessage.value = `Looking for ${selectedMode.value} opponents...`
         startQueuePolling()
       }
+    } else {
+      // Failed to join queue
+      isSearching.value = false
+      const errorMsg = 'message' in response ? response.message : 'Failed to join matchmaking. Please try again.'
+      statusMessage.value = errorMsg
     }
   } catch (error) {
     console.error('Failed to join matchmaking:', error)
