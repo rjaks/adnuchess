@@ -37,390 +37,80 @@
             </p>            <p class="text-xs text-slate-500">{{ gameState?.gameMode }} • {{ formatGameTime(gameTime) }}</p>
           </div>
         </div>
-      </div><!-- Chess Board and Move History -->
-      <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">
-        <!-- Opponent Info -->
-        <div class="mb-6 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-full bg-[#021d94]/10 flex items-center justify-center">
-              <span class="text-sm font-bold text-[#021d94]">{{ opponentInitials }}</span>
-            </div>
-            <div>
-              <p class="font-semibold text-slate-900">{{ opponent?.name || 'Opponent' }}</p>
-              <p class="text-xs text-slate-500">{{ opponent?.color === 'white' ? 'White' : 'Black' }}</p>
-            </div>
-          </div>
-          <div class="text-right">
-            <div v-if="gameState?.status === 'finished'" class="text-sm font-semibold">
-              <span v-if="gameState.winner === 'draw'" class="text-amber-600">Draw</span>
-              <span v-else-if="gameState.winner === user?.id" class="text-green-600">You Won!</span>
-              <span v-else class="text-red-600">You Lost</span>
-            </div>
-          </div>
-        </div>        <!-- Board and Moves Side by Side -->
-        <div class="flex gap-8 items-start justify-center">
-          <!-- Chess Board Grid -->
-        <div class="rounded-3xl border-4 border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-10 shadow-inner flex-1 max-w-7xl">
-          <div class="aspect-square w-full">            <!-- Board with coordinates -->
-            <div class="relative">
-              <!-- File labels (A-H) at top -->
-              <div class="flex mb-2">
-                <div class="w-8"></div> <!-- Spacer for left rank labels -->
-                <div class="flex-1 grid grid-cols-8 gap-0">
-                  <span v-for="file in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']" :key="file" class="text-center text-sm font-bold text-[#021d94] flex items-center justify-center">
-                    {{ file }}
-                  </span>
-                </div>
-                <div class="w-8"></div> <!-- Spacer for right rank labels -->
-              </div>
-              
-              <div class="flex gap-2">
-                <!-- Rank labels (8-1) on left -->
-                <div class="flex flex-col justify-between w-8">
-                  <span v-for="rank in (myColor === 'white' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8])" :key="rank" class="flex items-center justify-center text-sm font-bold text-[#021d94] aspect-square">
-                    {{ rank }}
-                  </span>
-                </div>
-                  <!-- Chess board -->
-                <div class="flex-1 overflow-hidden shadow-2xl border-8 border-[#021d94]/30 relative">
-                  <!-- SVG overlay for arrows -->
-                  <svg
-                    class="absolute inset-0 pointer-events-none z-10"
-                    style="width: 100%; height: 100%;"
-                  >
-                    <defs>
-                      <marker
-                        id="arrowhead-green"
-                        markerWidth="10"
-                        markerHeight="10"
-                        refX="9"
-                        refY="3"
-                        orient="auto"
-                      >
-                        <polygon points="0 0, 10 3, 0 6" fill="rgba(34, 197, 94, 0.8)" />
-                      </marker>
-                      <marker
-                        id="arrowhead-red"
-                        markerWidth="10"
-                        markerHeight="10"
-                        refX="9"
-                        refY="3"
-                        orient="auto"
-                      >
-                        <polygon points="0 0, 10 3, 0 6" fill="rgba(239, 68, 68, 0.8)" />
-                      </marker>
-                      <marker
-                        id="arrowhead-yellow"
-                        markerWidth="10"
-                        markerHeight="10"
-                        refX="9"
-                        refY="3"
-                        orient="auto"
-                      >
-                        <polygon points="0 0, 10 3, 0 6" fill="rgba(234, 179, 8, 0.8)" />
-                      </marker>
-                      <marker
-                        id="arrowhead-blue"
-                        markerWidth="10"
-                        markerHeight="10"
-                        refX="9"
-                        refY="3"
-                        orient="auto"
-                      >
-                        <polygon points="0 0, 10 3, 0 6" fill="rgba(59, 130, 246, 0.8)" />
-                      </marker>
-                    </defs>
-                    
-                    <!-- Draw all arrows -->
-                    <line
-                      v-for="(arrow, index) in arrows"
-                      :key="`arrow-${index}`"
-                      :x1="getSquareCenter(arrow.from).x + '%'"
-                      :y1="getSquareCenter(arrow.from).y + '%'"
-                      :x2="getSquareCenter(arrow.to).x + '%'"
-                      :y2="getSquareCenter(arrow.to).y + '%'"
-                      :stroke="getArrowColor(arrow.color)"
-                      stroke-width="8"
-                      stroke-linecap="round"
-                      :marker-end="`url(#arrowhead-${arrow.color})`"
-                      opacity="0.8"
-                    />
-                  </svg>
-                  
-                  <div class="grid grid-cols-8 gap-0 h-full w-full"><div
-                      v-for="(square, index) in boardSquares"
-                      :key="index"                      :class="[
-                        'aspect-square flex items-center justify-center cursor-pointer transition-all duration-200 relative',
-                        getSquareColor(square.file, square.rank),
-                        square.isSelected ? 'ring-4 ring-[#021d94] ring-inset z-10' : '',
-                        square.isLastMove && !square.isSelected ? 'ring-4 ring-[#ffaa00] ring-inset' : '',
-                        !square.isSelected && !square.isLastMove ? 'hover:brightness-90' : ''
-                      ]"
-                      @click="handleSquareClick(square)"
-                      @contextmenu.prevent="handleRightMouseDown($event, square)"
-                      @mousedown.right.prevent="handleRightMouseDown($event, square)"
-                      @mouseup.right.prevent="handleRightMouseUp($event, square)"
-                      @mouseenter="handleMouseEnter(square)"
-                      @dragover.prevent="handleDragOver($event, square)"
-                      @drop="handleDrop($event, square)"
-                    >
-                      <!-- Square highlight overlay -->
-                      <div
-                        v-if="getSquareHighlight(square.file + square.rank)"
-                        :class="[
-                          'absolute inset-0 pointer-events-none z-[5]',
-                          getHighlightClass(getSquareHighlight(square.file + square.rank)!)
-                        ]"
-                      ></div><!-- Legal move indicator -->
-                      <div
-                        v-if="square.isLegalMove && !square.piece"
-                        class="absolute inset-0 flex items-center justify-center pointer-events-none"
-                      >
-                        <div class="w-4 h-4 rounded-full bg-[#021d94]/50"></div>
-                      </div>                      <!-- Capture indicator - light red overlay -->
-                      <div
-                        v-else-if="square.isLegalMove && square.piece"
-                        class="absolute inset-0 bg-red-400/40 pointer-events-none"
-                      ></div>
-                      
-                      <!-- Chess piece -->
-                      <span 
-                        v-if="square.piece" 
-                        :draggable="canDragPiece(square)"
-                        @dragstart="handleDragStart($event, square)"
-                        @dragend="handleDragEnd"
-                        :class="[
-                          'select-none font-bold',
-                          'text-6xl leading-none',
-                          canDragPiece(square) ? 'cursor-move' : 'cursor-default'
-                        ]"
-                        :style="square.piece.color === 'w'
-                          ? 'color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; paint-order: stroke fill; -webkit-text-stroke: 2px rgba(0,0,0,0.8); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));' 
-                          : 'color: #1e293b !important; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));'"
-                      >
-                        {{ getPieceSymbol(square.piece.type, square.piece.color) }}
-                      </span>
-                    </div>
-                  </div>                </div>
-                
-                <!-- Rank labels (8-1) on right -->
-                <div class="flex flex-col justify-between w-8">
-                  <span v-for="rank in (myColor === 'white' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8])" :key="rank + '-right'" class="flex items-center justify-center text-sm font-bold text-[#021d94] aspect-square">
-                    {{ rank }}
-                  </span>
-                </div>
-              </div>              
-              <!-- File labels (A-H) at bottom -->
-              <div class="flex mt-2">
-                <div class="w-8"></div> <!-- Spacer for left rank labels -->
-                <div class="flex-1 grid grid-cols-8 gap-0">
-                  <span v-for="file in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']" :key="file + '-bottom'" class="text-center text-sm font-bold text-[#021d94] flex items-center justify-center">
-                    {{ file }}
-                  </span>
-                </div>
-                <div class="w-8"></div> <!-- Spacer for right rank labels -->
-              </div></div>
-          </div>
-        </div>          <!-- Move History and Game Controls Panel -->
-          <div class="w-80 flex-shrink-0 space-y-4">            <!-- Move History -->
-            <div v-if="gameState?.moveHistory && gameState.moveHistory.length > 0" class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner">
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-semibold text-[#021d94]">Moves</h4>
-                <div v-if="reviewMode" class="text-xs font-medium text-[#021d94] bg-white/60 px-2 py-1 rounded">
-                  {{ (reviewMoveIndex ?? -1) + 1 }}/{{ gameState.moveHistory.length }}
-                </div>
-              </div>
-              
-              <!-- Scrollable Move History - Limited Height -->
-              <div class="overflow-y-auto mb-3" style="max-height: 200px;">
-                <div class="space-y-1">
-                  <!-- Group moves in pairs (white and black) -->
-                  <div 
-                    v-for="moveNumber in Math.ceil(gameState.moveHistory.length / 2)" 
-                    :key="moveNumber"
-                    class="flex items-center gap-2 text-sm"
-                  >
-                    <!-- Move number -->
-                    <span class="font-semibold text-[#021d94] w-8 flex-shrink-0">
-                      {{ moveNumber }}.
-                    </span>
-                    
-                    <!-- White's move -->
-                    <span 
-                      @click="goToMove((moveNumber - 1) * 2)"
-                      :class="[
-                        'font-medium text-slate-700 px-3 py-1 rounded flex-1 cursor-pointer transition',
-                        reviewMode && reviewMoveIndex === (moveNumber - 1) * 2 
-                          ? 'bg-[#021d94] text-white' 
-                          : 'bg-white/60 hover:bg-white/80'
-                      ]"
-                    >
-                      {{ gameState.moveHistory[(moveNumber - 1) * 2] }}
-                    </span>
-                    
-                    <!-- Black's move (if exists) -->
-                    <span 
-                      v-if="(moveNumber - 1) * 2 + 1 < gameState.moveHistory.length"
-                      @click="goToMove((moveNumber - 1) * 2 + 1)"
-                      :class="[
-                        'font-medium text-slate-700 px-3 py-1 rounded flex-1 cursor-pointer transition',
-                        reviewMode && reviewMoveIndex === (moveNumber - 1) * 2 + 1
-                          ? 'bg-[#021d94] text-white'
-                          : 'bg-white/60 hover:bg-white/80'
-                      ]"
-                    >
-                      {{ gameState.moveHistory[(moveNumber - 1) * 2 + 1] }}
-                    </span>
-                    <span v-else class="flex-1"></span>
-                  </div>
-                </div>              </div>              <!-- Navigation Buttons -->
-              <div class="grid grid-cols-3 gap-2">
-                <button
-                  @click="goToPreviousMove"
-                  :disabled="reviewMode && reviewMoveIndex === -1"
-                  class="flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-white/80 hover:bg-white transition disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <svg class="w-5 h-5 text-[#021d94]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                  </svg>
-                  <span class="text-xs font-semibold text-[#021d94]">Prev</span>
-                </button>
-                
-                <button
-                  @click="exitReviewMode"
-                  :disabled="!reviewMode"
-                  class="flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-white/80 hover:bg-white transition disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Exit review mode"
-                >
-                  <svg class="w-5 h-5 text-[#021d94]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  <span class="text-xs font-semibold text-[#021d94]">Exit</span>
-                </button>
-                
-                <button
-                  @click="goToNextMove"
-                  :disabled="!reviewMode"
-                  class="flex items-center justify-center gap-1 px-3 py-2.5 rounded-lg bg-white/80 hover:bg-white transition disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <span class="text-xs font-semibold text-[#021d94]">Next</span>
-                  <svg class="w-5 h-5 text-[#021d94]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            </div>            <!-- Game Controls -->
-            <div v-if="isGameInProgress" class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner">
-              <h4 class="text-sm font-semibold text-[#021d94] mb-3">Actions</h4>
-              <div class="flex gap-2">
-                <button
-                  @click="offerDraw"
-                  class="flex-1 rounded-lg bg-[#021d94] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#021d94]/90 transition shadow-md"
-                  :disabled="drawOffered && !drawOfferInbound"
-                >
-                  {{ drawButtonText }}
-                </button>
-                <button
-                  @click="confirmResign"
-                  class="flex-1 rounded-lg bg-[#021d94] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#021d94]/90 transition shadow-md"
-                >
-                  Resign
-                </button>
-              </div>
-            </div>
-              <!-- Chat Panel -->
-            <div class="rounded-3xl border border-white/70 bg-gradient-to-br from-amber-50 to-blue-50 p-4 shadow-inner">
-              <div class="flex items-center justify-between mb-3">
-                <div class="flex items-center gap-2">
-                  <h4 class="text-sm font-semibold text-[#021d94]">Chat</h4>
-                  <span
-                    v-if="!showChat && unreadMessages > 0"
-                    class="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"
-                  >
-                    {{ unreadMessages > 9 ? '9+' : unreadMessages }}
-                  </span>
-                </div>
-                <button
-                  @click="toggleChat"
-                  class="text-xs font-medium text-[#021d94] hover:text-[#021d94]/80 transition"
-                >
-                  {{ showChat ? 'Hide' : 'Show' }}
-                </button>
-              </div>
-              
-              <div v-if="showChat" class="space-y-3">
-                <!-- Chat messages -->
-                <div
-                  ref="chatContainer"
-                  class="h-40 overflow-y-auto bg-white/60 rounded-lg p-3 space-y-2"
-                >
-                  <div
-                    v-for="(msg, index) in chatMessages"
-                    :key="index"
-                    :class="[
-                      'text-sm p-2 rounded-lg',
-                      msg.userId === user?.id
-                        ? 'bg-[#021d94] text-white ml-auto max-w-[80%]'
-                        : 'bg-white/80 text-slate-900 mr-auto max-w-[80%]'
-                    ]"
-                  >
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                      <div class="font-semibold text-xs opacity-80">
-                        {{ msg.userName }}
-                      </div>
-                      <div class="text-xs opacity-60">
-                        {{ formatMessageTime(msg.timestamp) }}
-                      </div>
-                    </div>
-                    <div class="break-words">{{ msg.message }}</div>
-                  </div>
-                  
-                  <div v-if="chatMessages.length === 0" class="text-center text-slate-500 text-xs py-4">
-                    No messages yet. Say hi! 👋
-                  </div>
-                </div>
-                
-                <!-- Chat input -->
-                <div class="space-y-2">
-                  <div class="flex gap-2">
-                    <input
-                      v-model="chatInput"
-                      @keyup.enter="sendChatMessage"
-                      type="text"
-                      placeholder="Type a message..."
-                      maxlength="500"
-                      class="flex-1 rounded-lg px-3 py-2 text-sm border border-slate-300 focus:border-[#021d94] focus:ring-1 focus:ring-[#021d94] outline-none"
-                    />
-                    <button
-                      @click="sendChatMessage"
-                      :disabled="!chatInput.trim()"
-                      class="rounded-lg bg-[#021d94] px-4 py-2 text-sm font-semibold text-white hover:bg-[#021d94]/90 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Send
-                    </button>
-                  </div>
-                  <div class="text-xs text-slate-500 text-right">
-                    {{ chatInput.length }}/500
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      </div>      <!-- Chess Board and Move History -->
+      <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">        <!-- Opponent Clock (Top) -->
+        <ChessClock
+          v-if="gameState?.timeControl"
+          :display-time="opponent?.color === 'white' ? whiteFormatted : blackFormatted"
+          :status="opponent?.color === 'white' ? whiteStatus : blackStatus"
+          :is-active="gameState.status === 'active' && !isMyTurn"
+          :player-name="opponent?.name || 'Opponent'"
+          :player-color="opponent?.color === 'white' ? 'White' : 'Black'"
+          :increment="gameState.timeControl.incrementMs / 1000"
+          :avatar-url="opponent?.avatarUrl"
+          class="mb-4"
+        />
+        
+        <!-- Board and Moves Side by Side -->
+        <div class="flex gap-8 items-start justify-center">          <!-- Chess Board Component -->
+          <ChessBoard
+            :board-squares="boardSquares"
+            :my-color="myColor"
+            :arrows="arrows"
+            :highlights="highlights"
+            :review-mode="reviewMode"
+            :can-interact="gameState?.status === 'active'"
+            @square-click="handleSquareClick"
+            @right-mouse-down="handleRightMouseDown"
+            @right-mouse-up="handleRightMouseUp"
+            @drag-start="handleDragStart"
+            @drag-over="handleDragOver"
+            @drag-end="handleDragEnd"
+            @drop="handleDrop"
+          />
 
-        <!-- Current Player Info -->
-        <div class="mt-6 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-full bg-[#ffaa00]/10 flex items-center justify-center">
-              <span class="text-sm font-bold text-[#ffaa00]">{{ userInitials }}</span>
-            </div>
-            <div>
-              <p class="font-semibold text-slate-900">{{ user?.name || 'You' }}</p>
-              <p class="text-xs text-slate-500">{{ myColor === 'white' ? 'White' : 'Black' }}</p>
-            </div>
-          </div>          <div class="text-right">
-            <p class="text-sm text-slate-600">Moves: {{ gameState?.moveHistory?.length || 0 }}</p>
+          <!-- Move History and Game Controls Panel -->
+          <div class="w-80 flex-shrink-0 space-y-4">
+            <!-- Move History Component -->
+            <ChessMoveHistory
+              v-if="gameState?.moveHistory && gameState.moveHistory.length > 0"
+              :move-history="gameState.moveHistory"
+              :review-mode="reviewMode"
+              :review-move-index="reviewMoveIndex"
+              @go-to-move="goToMove"
+              @previous-move="goToPreviousMove"
+              @next-move="goToNextMove"
+              @exit-review="exitReviewMode"
+            />            <!-- Game Controls Component -->
+            <ChessGameControls
+              v-if="isGameInProgress"
+              :draw-offered="drawOffered"
+              :draw-offer-inbound="drawOfferInbound"
+              @offer-draw="offerDraw"
+              @resign="confirmResign"
+            />            <!-- Chat Component -->
+            <ChessGameChat
+              :messages="chatMessages"
+              :show-chat="showChat"
+              :unread-messages="unreadMessages"
+              :current-user-id="user?.id"
+              @toggle-chat="toggleChat"
+              @send-message="sendChatMessage"
+            />
           </div>        </div>
+        
+        <!-- Current Player Clock (Bottom) -->
+        <ChessClock
+          v-if="gameState?.timeControl"
+          :display-time="myColor === 'white' ? whiteFormatted : blackFormatted"
+          :status="myColor === 'white' ? whiteStatus : blackStatus"
+          :is-active="gameState.status === 'active' && isMyTurn"
+          :player-name="user?.name || 'You'"
+          :player-color="myColor === 'white' ? 'White' : 'Black'"
+          :increment="gameState.timeControl.incrementMs / 1000"
+          :avatar-url="gameState.player1.id === user?.id ? gameState.player1.avatarUrl : gameState.player2.avatarUrl"
+          class="mt-4"
+        />
       </div>
       
       <!-- Draw offer modal -->
@@ -443,9 +133,7 @@
             </button>
           </div>
         </div>
-      </div>
-
-      <!-- Resign confirmation modal -->
+      </div>      <!-- Resign confirmation modal -->
       <div v-if="showResignConfirmation" class="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
         <div class="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
           <h3 class="text-lg font-bold text-slate-900">Confirm Resignation</h3>
@@ -466,14 +154,32 @@
           </div>
         </div>
       </div>
+
+      <!-- Game End Modal -->
+      <ChessGameEndModal
+        v-if="gameEndInfo && showGameEndModal"
+        :is-visible="showGameEndModal"
+        :winner="gameEndInfo.winner || 'draw'"
+        :result="gameEndInfo.result"
+        :winner-name="gameEndInfo.winnerName"
+        :loser-name="gameEndInfo.loserName"
+        :my-color="myColor"
+        :player1-name="gameState?.player1.name"
+        :player2-name="gameState?.player2.name"
+        @close="closeGameEndModal"
+        @view-analysis="viewAnalysis"
+        @rematch="goToRematch"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useChessClock } from '~/composables/useChessClock'
 import { Chess } from 'chess.js'
+import { useRouter } from 'vue-router'
 import { api } from '~/convex/_generated/api'
 
 // Define Chess.js types since they're not exported properly
@@ -498,13 +204,26 @@ type GameState = {
   lastMove: string | null
   lastMoveTime: number
   currentTurn: 'white' | 'black'
-  player1: { id: string; name: string; color: 'white' | 'black' }
-  player2: { id: string; name: string; color: 'white' | 'black' }
+  player1: { id: string; name: string; color: 'white' | 'black'; avatarUrl?: string }
+  player2: { id: string; name: string; color: 'white' | 'black'; avatarUrl?: string }
   status: 'waiting' | 'active' | 'finished'
   winner?: string
+  result?: 'checkmate' | 'stalemate' | 'resignation' | 'timeout' | 'agreement' | 'abandonment'
+  endReason?: string
   gameMode: string
   createdAt: number
   moveHistory: string[]
+  // Timer fields
+  whiteTimeMs?: number
+  blackTimeMs?: number
+  timeControl?: {
+    baseTimeMs: number
+    incrementMs: number
+    type: 'bullet' | 'blitz' | 'rapid' | 'classical'
+  }
+  lastMoveTimestamp?: number
+  gameStartTimestamp?: number
+  timeoutWinner?: 'white' | 'black' | null
 }
 
 type BoardSquare = {
@@ -546,15 +265,50 @@ const isRightMouseDown = ref(false)
 
 // Chat state
 const chatMessages = ref<any[]>([])
-const chatInput = ref('')
 const showChat = ref(false)
-const chatContainer = ref<HTMLElement | null>(null)
 const unreadMessages = ref(0)
 
 // Timer and subscription
 let gameTimer: ReturnType<typeof setInterval> | null = null
 let unsubscribe: (() => void) | null = null
 let chatUnsubscribe: (() => void) | null = null
+
+// Chess Clock Composable
+const clockState = computed(() => {
+  if (!gameState.value || !gameState.value.timeControl) return null
+  
+  // Use actual server values, only fallback for initial state
+  const whiteTime = gameState.value.whiteTimeMs !== undefined 
+    ? gameState.value.whiteTimeMs 
+    : gameState.value.timeControl.baseTimeMs
+  
+  const blackTime = gameState.value.blackTimeMs !== undefined 
+    ? gameState.value.blackTimeMs 
+    : gameState.value.timeControl.baseTimeMs
+  
+  console.log('[Clock] Timer state:', {
+    whiteTimeMs: whiteTime,
+    blackTimeMs: blackTime,
+    lastMoveTimestamp: gameState.value.lastMoveTimestamp,
+    gameStartTimestamp: gameState.value.gameStartTimestamp
+  })
+  
+  return {
+    whiteTimeMs: whiteTime,
+    blackTimeMs: blackTime,
+    currentTurn: gameState.value.currentTurn,
+    lastMoveTimestamp: gameState.value.lastMoveTimestamp ?? gameState.value.gameStartTimestamp ?? gameState.value.createdAt,
+    gameStartTimestamp: gameState.value.gameStartTimestamp ?? gameState.value.createdAt,
+    isGameActive: gameState.value.status === 'active'
+  }
+})
+
+const { 
+  whiteFormatted, 
+  blackFormatted, 
+  whiteStatus, 
+  blackStatus 
+} = useChessClock(clockState)
 
 // Connection status
 const connectionStatus = ref('Connecting...')
@@ -617,6 +371,161 @@ const opponentInitials = computed(() => {
   if (!opponent.value) return 'OP'
   return opponent.value.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 })
+
+// Game end detection
+type GameEndInfo = {
+  isFinished: boolean
+  winner: 'white' | 'black' | 'draw' | null
+  winnerName: string
+  loserName: string
+  winnerColor: 'white' | 'black' | null
+  loserColor: 'white' | 'black' | null
+  result: string
+  message: string
+  isVictory: boolean // true if current user won
+  isDraw: boolean
+}
+
+const gameEndInfo = computed((): GameEndInfo | null => {
+  if (!gameState.value || gameState.value.status !== 'finished') {
+    return null
+  }
+
+  const isFinished = true
+  const result = gameState.value.result || 'unknown'
+  const winner = gameState.value.winner
+  
+  // Determine winner/loser details
+  let winnerColor: 'white' | 'black' | null = null
+  let loserColor: 'white' | 'black' | null = null
+  let winnerName = ''
+  let loserName = ''
+  let isDraw = false
+  
+  if (winner === 'draw') {
+    isDraw = true
+    winnerName = 'Draw'
+    loserName = 'Draw'
+  } else if (winner) {
+    // Winner is a player ID
+    const winnerPlayer = gameState.value.player1.id === winner 
+      ? gameState.value.player1 
+      : gameState.value.player2
+    const loserPlayer = gameState.value.player1.id === winner 
+      ? gameState.value.player2 
+      : gameState.value.player1
+    
+    winnerColor = winnerPlayer.color
+    loserColor = loserPlayer.color
+    winnerName = winnerPlayer.name
+    loserName = loserPlayer.name
+  }
+  
+  // Determine if current user won
+  const isVictory = !isDraw && winner === user.value?.id
+  
+  // Create user-friendly message
+  let message = ''
+  switch (result) {
+    case 'checkmate':
+      message = isDraw ? 'Draw by stalemate' : `Checkmate! ${winnerName} wins!`
+      break
+    case 'stalemate':
+      message = 'Draw by stalemate'
+      isDraw = true
+      break
+    case 'resignation':
+      message = `${winnerName} wins by resignation`
+      break
+    case 'timeout':
+      message = `${winnerName} wins on time`
+      break
+    case 'agreement':
+      message = 'Draw by agreement'
+      isDraw = true
+      break
+    case 'abandonment':
+      message = `${winnerName} wins by abandonment`
+      break
+    default:
+      message = isDraw ? 'Game ended in a draw' : `${winnerName} wins!`
+  }
+  
+  return {
+    isFinished,
+    winner: isDraw ? 'draw' : winnerColor,
+    winnerName,
+    loserName,
+    winnerColor,
+    loserColor,
+    result,
+    message,
+    isVictory,
+    isDraw
+  }
+})
+
+// Track previous game status to detect changes
+const previousGameStatus = ref<'waiting' | 'active' | 'finished' | null>(null)
+
+// Watch for game end
+watch(
+  () => gameState.value?.status,
+  (newStatus, oldStatus) => {
+    if (newStatus === 'finished' && oldStatus === 'active') {
+      console.log('[Game End] Game finished detected!', gameEndInfo.value)
+      
+      // Emit event for parent components or trigger modal
+      if (gameEndInfo.value) {
+        handleGameFinished(gameEndInfo.value)
+      }
+    }
+    previousGameStatus.value = newStatus || null
+  }
+)
+
+// Handler for game finished event
+const handleGameFinished = async (endInfo: GameEndInfo) => {
+  console.log('[Game End] Handling game end:', endInfo)
+  
+  // Exit review mode if active
+  if (reviewMode.value) {
+    exitReviewMode()
+  }
+  
+  // Clear any active selections
+  selectedSquare.value = null
+  legalMovesCache.value.clear()
+  
+  // Update ELO ratings for both players
+  try {
+    const { $convex } = useNuxtApp()
+    const eloResult = await $convex.mutation(api.chess_games_gameEnd.updateEloAfterGame, {
+      gameId: props.gameId
+    })
+    
+    if (eloResult.alreadyUpdated) {
+      console.log('[ELO] Ratings were already updated for this game')
+    } else {
+      console.log('[ELO] Ratings updated successfully:', eloResult)
+      // Store ELO changes for display in the modal
+      eloChanges.value = eloResult
+    }
+  } catch (error) {
+    console.error('[ELO] Failed to update ratings:', error)
+  }
+  
+  // Show the game end modal after a brief delay for better UX
+  setTimeout(() => {
+    showGameEndModal.value = true
+  }, 500)
+}
+
+// Store ELO changes for display
+const eloChanges = ref<{
+  white: { oldRating: number; newRating: number; change: number };
+  black: { oldRating: number; newRating: number; change: number };
+} | null>(null)
 
 // Watch selectedSquare and update cache immediately
 watch(selectedSquare, (newSquare) => {
@@ -699,22 +608,47 @@ const loadGameState = async () => {
     const response = await $convex.query(api.chess_games.getGameById, { gameId: props.gameId })
     
     if (response) {
-      gameState.value = {
+      // Fetch player avatars from profiles
+      const player1Profile = await $convex.query(api.profiles.getByUserId, { userId: response.player1.id })
+      const player2Profile = await $convex.query(api.profiles.getByUserId, { userId: response.player2.id })
+        gameState.value = {
         id: response.gameId,
         fen: response.fen,
         lastMove: response.lastMove || null,
         lastMoveTime: response.lastMoveTime,
         currentTurn: response.currentTurn,
-        player1: response.player1,
-        player2: response.player2,
+        player1: {
+          ...response.player1,
+          avatarUrl: player1Profile?.picture
+        },
+        player2: {
+          ...response.player2,
+          avatarUrl: player2Profile?.picture
+        },
         status: response.status,
         winner: response.winner,
+        result: response.result,
+        endReason: response.endReason,
         gameMode: response.gameMode,
         createdAt: response.createdAt,
-        moveHistory: response.moveHistory
-      }
+        moveHistory: response.moveHistory,
+        // Timer fields
+        whiteTimeMs: response.whiteTimeMs,
+        blackTimeMs: response.blackTimeMs,
+        timeControl: response.timeControl,        lastMoveTimestamp: response.lastMoveTimestamp,
+        gameStartTimestamp: response.gameStartTimestamp,
+        timeoutWinner: response.timeoutWinner
+      };
+      
       game.value = new Chess(response.fen)
       lastPolledTime.value = response.lastMoveTime
+      
+      // If game is already finished when loading (e.g., page refresh), show modal
+      if (response.status === 'finished') {
+        setTimeout(() => {
+          showGameEndModal.value = true
+        }, 1000)
+      }
     }
     
     connectionStatus.value = 'Connected'
@@ -761,12 +695,11 @@ const makeMove = async (fromSquare: string, toSquare: string) => {
     console.log('Sending move to Convex:', {
       gameId: props.gameId,
       move: moveObj.san,
-      playerId: user.value.id
-    })
+      playerId: user.value.id    })
     
-    // First try with direct string reference
+    // Use chess_games:makeMove which has timer support
     try {
-      const result = await $convex.mutation('games:makeMove', {
+      const result = await $convex.mutation('chess_games:makeMove', {
         gameId: props.gameId,
         move: moveObj.san,
         playerId: user.value.id
@@ -859,44 +792,7 @@ const handleSquareClick = (square: BoardSquare) => {
   }
 }
 
-const getSquareColor = (file: string, rank: number) => {
-  const fileIndex = 'abcdefgh'.indexOf(file)
-  const isLight = (fileIndex + rank) % 2 === 1
-  // Blue and gold theme - lighter shades for better visibility
-  return isLight ? 'bg-amber-100' : 'bg-blue-400'
-}
-
-const getPieceSymbol = (type: PieceSymbol, color: 'w' | 'b') => {
-  const pieces = {
-    w: { 
-      k: '♔', 
-      q: '♕', 
-      r: '♖', 
-      b: '♗', 
-      n: '♘', 
-      p: '♙' 
-    },
-    b: { 
-      k: '♚', 
-      q: '♛', 
-      r: '♜', 
-      b: '♝', 
-      n: '♞', 
-      p: '♟︎' // Using alternate black pawn Unicode with variation selector
-    }
-  }
-  
-  // Safer type checking before accessing
-  if (color === 'w' || color === 'b') {
-    const colorPieces = pieces[color]
-    if (type in colorPieces) {
-      return colorPieces[type as keyof typeof colorPieces]
-    }
-  }
-  
-  // Fallback
-  return ''
-}
+// Helper functions moved to ChessBoard component
 
 const formatGameTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60)
@@ -960,33 +856,8 @@ const goToMove = (moveIndex: number) => {
   reviewMoveIndex.value = moveIndex
 }
 
-// Drawing arrows and highlights functions
-const getSquareHighlight = (square: string): ArrowColor | null => {
-  const highlight = highlights.value.find(h => h.square === square)
-  return highlight ? highlight.color : null
-}
-
-const getHighlightClass = (color: ArrowColor): string => {
-  const classes = {
-    green: 'bg-green-500/40',
-    red: 'bg-red-500/40',
-    yellow: 'bg-yellow-500/40',
-    blue: 'bg-blue-500/40'
-  }
-  return classes[color]
-}
-
-const getArrowColor = (color: ArrowColor): string => {
-  const colors = {
-    green: 'rgba(34, 197, 94, 0.8)',
-    red: 'rgba(239, 68, 68, 0.8)',
-    yellow: 'rgba(234, 179, 8, 0.8)',
-    blue: 'rgba(59, 130, 246, 0.8)'
-  }
-  return colors[color]
-}
-
-const getSquareCenter = (square: string): { x: number; y: number } => {
+// Drawing arrows and highlights helper functions
+const getSquareCenter = (square: string): { x: number; y: number} => {
   const file = square[0]
   const rank = parseInt(square[1] || '1')
   
@@ -1184,23 +1055,37 @@ const setupSubscription = () => {
       } else {
         // No draw offer active
         drawOfferInbound.value = false
-        drawOffered.value = false
-      }
+        drawOffered.value = false      }
       
       connectionStatus.value = 'Connected'
-      gameState.value = {
+        gameState.value = {
         id: updatedGame.gameId,
         fen: updatedGame.fen,
         lastMove: updatedGame.lastMove || null,
         lastMoveTime: updatedGame.lastMoveTime,
         currentTurn: updatedGame.currentTurn,
-        player1: updatedGame.player1,
-        player2: updatedGame.player2,
+        player1: {
+          ...updatedGame.player1,
+          avatarUrl: gameState.value?.player1?.avatarUrl // Preserve avatar from initial load
+        },
+        player2: {
+          ...updatedGame.player2,
+          avatarUrl: gameState.value?.player2?.avatarUrl // Preserve avatar from initial load
+        },
         status: updatedGame.status,
         winner: updatedGame.winner,
+        result: updatedGame.result,
+        endReason: updatedGame.endReason,
         gameMode: updatedGame.gameMode || 'standard',
         createdAt: updatedGame.createdAt,
-        moveHistory: updatedGame.moveHistory || []
+        moveHistory: updatedGame.moveHistory || [],
+        // Timer fields
+        whiteTimeMs: updatedGame.whiteTimeMs,
+        blackTimeMs: updatedGame.blackTimeMs,
+        timeControl: updatedGame.timeControl,
+        lastMoveTimestamp: updatedGame.lastMoveTimestamp,
+        gameStartTimestamp: updatedGame.gameStartTimestamp,
+        timeoutWinner: updatedGame.timeoutWinner
       }
         // Update chess.js instance with new FEN
       try {
@@ -1226,12 +1111,9 @@ const setupSubscription = () => {
 const showResignConfirmation = ref(false)
 const drawOffered = ref(false)
 const drawOfferInbound = ref(false)
+const showGameEndModal = ref(false)
 const isGameInProgress = computed(() => {
   return gameState.value?.status === 'active' || gameState.value?.status === 'waiting'
-})
-const drawButtonText = computed(() => {
-  if (drawOfferInbound.value) return 'Accept Draw'
-  return drawOffered.value ? 'Draw Offered' : 'Offer Draw'
 })
 
 // Game control methods
@@ -1317,60 +1199,76 @@ const respondToDrawOffer = async (accepted: boolean) => {
       connectionStatus.value = 'Draw accepted'
     } else {
       connectionStatus.value = 'Draw declined'
-    }
-  } catch (error) {
+    }  } catch (error) {
     console.error('Failed to respond to draw offer:', error)
     gameError.value = 'Failed to respond: ' + (error instanceof Error ? error.message : String(error))
     
     // Show a user-friendly error message
     alert(`Could not ${accepted ? 'accept' : 'decline'} the draw offer. Please try again later.`)
-    
-    // Reset connection status
+      // Reset connection status
     connectionStatus.value = 'Connected'
     
     // Re-enable the draw offer if it failed
-    drawOfferInbound.value = true  }
+    drawOfferInbound.value = true
+  }
 }
 
-// Chat functions
-const formatMessageTime = (timestamp: number) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-  
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+// Game End Modal event handlers
+const closeGameEndModal = () => {
+  showGameEndModal.value = false
 }
 
+const viewAnalysis = () => {
+  // Close the modal
+  showGameEndModal.value = false
+  
+  // Enter review mode at the last move
+  if (gameState.value && gameState.value.moveHistory.length > 0) {
+    reviewMoveIndex.value = gameState.value.moveHistory.length - 1
+    reviewMode.value = true
+      // Reconstruct the game state at the last move
+    const reviewGame = new Chess()
+    for (let i = 0; i <= reviewMoveIndex.value; i++) {
+      const move = gameState.value.moveHistory[i]
+      if (move) {
+        reviewGame.move(move)
+      }
+    }
+    game.value = reviewGame
+  }
+}
+
+const goToRematch = () => {
+  // Close the modal
+  showGameEndModal.value = false
+  
+  // Navigate to matchmaking for a new game
+  const router = useRouter()
+  router.push('/matchmaking')
+}
+
+// Chat functions - helper moved to component
 const loadChatMessages = async () => {
   try {
     const { $convex } = useNuxtApp()
+    
+    // Use proper API reference
     const messages = await $convex.query(api.chat.getMessages, {
       gameId: props.gameId
     })
-    chatMessages.value = messages
-    
-    // Scroll to bottom
-    nextTick(() => {
-      if (chatContainer.value) {
-        chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-      }
-    })
+      chatMessages.value = messages || []
+    // Scroll handled by ChessGameChat component
   } catch (error) {
     console.error('Failed to load chat messages:', error)
+    // Set empty array on error to avoid undefined issues
+    chatMessages.value = []
   }
 }
 
 const setupChatSubscription = () => {
   const { $convex } = useNuxtApp()
   
-  // Set up real-time subscription for chat messages
+  // Use proper API reference
   chatUnsubscribe = $convex.onUpdate(
     api.chat.getMessages,
     { gameId: props.gameId },
@@ -1378,61 +1276,61 @@ const setupChatSubscription = () => {
       if (!messages) return
       
       console.log(`Received ${messages.length} chat messages`)
-      
-      // Track unread messages if chat is hidden
+        // Track unread messages if chat is hidden
       if (!showChat.value && messages.length > chatMessages.value.length) {
         unreadMessages.value += (messages.length - chatMessages.value.length)
       }
       
       chatMessages.value = messages
-      
-      // Auto-scroll to bottom when new message arrives
-      nextTick(() => {
-        if (chatContainer.value && showChat.value) {
-          chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-        }
-      })
+      // Auto-scroll handled by ChessGameChat component
     }
   )
 }
 
-const sendChatMessage = async () => {
-  if (!chatInput.value.trim() || !user.value) return
+const sendChatMessage = async (message: string) => {
+  if (!message.trim() || !user.value) return
   
   try {
     const { $convex } = useNuxtApp()
     
-    await $convex.mutation('chat:sendMessage', {
+    const messageData = {
       gameId: props.gameId,
       userId: user.value.id,
       userName: user.value.name || 'Anonymous',
-      message: chatInput.value.trim()
-    })
+      message: message.trim()
+    }
     
-    chatInput.value = ''
+    console.log('Sending chat message:', messageData)
+    
+    // Use proper API reference
+    const result = await $convex.mutation(api.chat.sendMessage, messageData)
+    
+    console.log('Message sent successfully:', result)
     
     // No need to reload messages - subscription will handle it
   } catch (error) {
     console.error('Failed to send message:', error)
-    alert('Failed to send message')
+    const err = error as Error
+    console.error('Error details:', {
+      name: err?.name,
+      message: err?.message,
+      stack: err?.stack
+    })
+    
+    // Better user feedback
+    connectionStatus.value = 'Chat error'
+    setTimeout(() => {
+      connectionStatus.value = 'Connected'
+    }, 2000)
   }
 }
 
 const toggleChat = () => {
   showChat.value = !showChat.value
-  
-  // Clear unread count when opening chat
+    // Clear unread count when opening chat
   if (showChat.value) {
     unreadMessages.value = 0
-    
-    // Scroll to bottom when opening chat
-    if (chatMessages.value.length > 0) {
-      nextTick(() => {
-        if (chatContainer.value) {
-          chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-        }
-      })
-    }
+    // Scroll handled by ChessGameChat component
   }
 }
 
@@ -1482,6 +1380,9 @@ const handleKeyDown = (event: KeyboardEvent) => {
 onMounted(async () => {
   await loadGameState()
   setupSubscription()
+  
+  // Load initial chat messages before setting up subscription
+  await loadChatMessages()
   setupChatSubscription()
   
   // Add keyboard event listener

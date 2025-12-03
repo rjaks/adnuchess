@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as admin from "../admin.js";
+import type * as chat from "../chat.js";
 import type * as chess_games from "../chess_games.js";
 import type * as chess_games_gameEnd from "../chess_games_gameEnd.js";
 import type * as games from "../games.js";
@@ -23,6 +24,9 @@ import type * as puzzle_admin from "../puzzle_admin.js";
 import type * as quiz from "../quiz.js";
 import type * as quiz_admin from "../quiz_admin.js";
 import type * as tournaments from "../tournaments.js";
+import type * as test from "../test.js";
+import type * as utils_eloConstants from "../utils/eloConstants.js";
+import type * as utils_timerHelpers from "../utils/timerHelpers.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -34,6 +38,7 @@ import type * as tournaments from "../tournaments.js";
  */
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  chat: typeof chat;
   chess_games: typeof chess_games;
   chess_games_gameEnd: typeof chess_games_gameEnd;
   games: typeof games;
@@ -43,6 +48,9 @@ declare const fullApi: ApiFromModules<{
   quiz: typeof quiz;
   quiz_admin: typeof quiz_admin;
   tournaments: typeof tournaments;
+  test: typeof test;
+  "utils/eloConstants": typeof utils_eloConstants;
+  "utils/timerHelpers": typeof utils_timerHelpers;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -12,7 +12,19 @@ export default defineSchema({
     ),
     department: v.optional(v.string()),
     departmentLastChanged: v.optional(v.number()),
-    elo: v.number(),
+    
+    // ELO Rating System Fields (optional for backward compatibility with existing data)
+    eloRating: v.optional(v.number()), // Current ELO rating (default: 1500 for new players)
+    gamesPlayed: v.optional(v.number()), // Total number of completed games
+    
+    // Game Statistics
+    wins: v.optional(v.number()), // Total wins
+    losses: v.optional(v.number()), // Total losses
+    draws: v.optional(v.number()), // Total draws
+    
+    // Legacy field - keeping for backward compatibility
+    elo: v.optional(v.number()),
+    
     picture: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -41,6 +53,14 @@ export default defineSchema({
     status: v.union(v.literal("waiting"), v.literal("active"), v.literal("finished")),
     winner: v.optional(v.string()),
     endReason: v.optional(v.string()),
+    result: v.optional(v.union(
+      v.literal("checkmate"),
+      v.literal("stalemate"),
+      v.literal("resignation"),
+      v.literal("timeout"),
+      v.literal("agreement"),
+      v.literal("abandonment")
+    )),
     drawOffer: v.optional(v.object({
       offeredBy: v.string(),
       offeredTo: v.string(),
@@ -49,6 +69,26 @@ export default defineSchema({
     gameMode: v.string(),
     createdAt: v.number(),
     moveHistory: v.array(v.string()),
+    
+    // Timer fields (optional for backward compatibility)
+    timeControl: v.optional(v.object({
+      baseTimeMs: v.number(),
+      incrementMs: v.number(),
+      type: v.union(
+        v.literal("none"),
+        v.literal("standard"),
+        v.literal("increment"),
+        v.literal("delay")
+      )
+    })),
+    whiteTimeMs: v.optional(v.number()),
+    blackTimeMs: v.optional(v.number()),
+    lastMoveTimestamp: v.optional(v.number()),
+    gameStartTimestamp: v.optional(v.number()),
+    timeoutWinner: v.optional(v.union(v.literal("white"), v.literal("black"))),
+    
+    // ELO rating update flag (ensures ratings are updated exactly once)
+    ratingsUpdated: v.optional(v.boolean()),
   })
     .index("by_gameId", ["gameId"])
     .index("by_player", ["player1.id"])
@@ -247,4 +287,14 @@ export default defineSchema({
     .index("by_tournament", ["tournamentId"])
     .index("by_status", ["status"])
     .index("by_round", ["tournamentId", "roundNumber"]),
+  // Chat messages for games
+  chat_messages: defineTable({
+    gameId: v.string(),
+    userId: v.string(),
+    userName: v.string(),
+    message: v.string(),
+    timestamp: v.number(),
+  })
+    .index("by_game", ["gameId"])
+    .index("by_timestamp", ["timestamp"]),
 });

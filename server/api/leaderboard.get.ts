@@ -47,28 +47,17 @@ export default defineEventHandler(async (event) => {
       // For display, use displayName if available
       const displayName = profile.displayName || profile.name
       
-      // Calculate streak and other stats from matches (if available)
+      // Get stats directly from profile (stored stats)
+      const wins = profile.wins ?? 0
+      const losses = profile.losses ?? 0
+      const draws = profile.draws ?? 0
+      const gamesPlayed = profile.gamesPlayed ?? 0
+      
+      // Calculate streak from matches (if available) - this is still dynamic
       const playerMatches = matches.filter(m => 
         (m.meta?.whitePlayerId === profile.userId || m.meta?.blackPlayerId === profile.userId) &&
         m.completedAt
       )
-      
-      // Initialize wins, losses, draws from match history
-      let wins = 0
-      let losses = 0
-      let draws = 0
-      
-      // Calculate actual stats from match history
-      playerMatches.forEach(match => {
-        const isWhitePlayer = match.meta?.whitePlayerId === profile.userId
-        const isBlackPlayer = match.meta?.blackPlayerId === profile.userId
-        
-        if (match.result === 'white' && isWhitePlayer) wins++
-        else if (match.result === 'black' && isBlackPlayer) wins++
-        else if ((match.result === 'white' && isBlackPlayer) || 
-                 (match.result === 'black' && isWhitePlayer)) losses++
-        else if (match.result === 'draw') draws++
-      })
       
       // Calculate streak (consecutive wins/losses)
       let streak = 0
@@ -77,20 +66,39 @@ export default defineEventHandler(async (event) => {
         .slice(0, 10)
 
       if (recentMatches.length > 0) {
-        const lastResult = recentMatches[0].result
+        const firstMatch = recentMatches[0]
+        const isWhitePlayer = firstMatch.meta?.whitePlayerId === profile.userId
+        const isBlackPlayer = firstMatch.meta?.blackPlayerId === profile.userId
+        
+        // Determine if player won/lost the first match
+        let firstResult: 'win' | 'loss' | 'draw' = 'draw'
+        if (firstMatch.result === 'white' && isWhitePlayer) firstResult = 'win'
+        else if (firstMatch.result === 'black' && isBlackPlayer) firstResult = 'win'
+        else if ((firstMatch.result === 'white' && isBlackPlayer) || 
+                 (firstMatch.result === 'black' && isWhitePlayer)) firstResult = 'loss'
+        
         let consecutiveCount = 0
         
         for (const match of recentMatches) {
-          if (match.result === lastResult) {
+          const isWhite = match.meta?.whitePlayerId === profile.userId
+          const isBlack = match.meta?.blackPlayerId === profile.userId
+          
+          let matchResult: 'win' | 'loss' | 'draw' = 'draw'
+          if (match.result === 'white' && isWhite) matchResult = 'win'
+          else if (match.result === 'black' && isBlack) matchResult = 'win'
+          else if ((match.result === 'white' && isBlack) || 
+                   (match.result === 'black' && isWhite)) matchResult = 'loss'
+          
+          if (matchResult === firstResult && firstResult !== 'draw') {
             consecutiveCount++
           } else {
             break
           }
         }
         
-        if (lastResult === 'white') {
+        if (firstResult === 'win') {
           streak = consecutiveCount
-        } else if (lastResult === 'black') {
+        } else if (firstResult === 'loss') {
           streak = -consecutiveCount
         }
       }
@@ -117,16 +125,20 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // If no real match data yet, use placeholder data only for demo users
-      if (playerMatches.length === 0 && profile.userId.startsWith('u_demo')) {
-        wins = Math.floor(Math.random() * 30)
-        losses = Math.floor(Math.random() * 20)
-        draws = Math.floor(Math.random() * 10)
+      // Use stored stats, or fallback to placeholder for demo users
+      let finalWins = wins
+      let finalLosses = losses
+      let finalDraws = draws
+      
+      if (gamesPlayed === 0 && profile.userId.startsWith('u_demo')) {
+        finalWins = Math.floor(Math.random() * 30)
+        finalLosses = Math.floor(Math.random() * 20)
+        finalDraws = Math.floor(Math.random() * 10)
       }
       
-      const totalMatches = wins + losses + draws
+      const totalMatches = finalWins + finalLosses + finalDraws
       const winRate = totalMatches > 0 
-        ? Math.round((wins / totalMatches) * 100) || 0 // Include draws in total for percentage calculation
+        ? Math.round((finalWins / totalMatches) * 100) || 0
         : 0
 
       players.push({
@@ -137,12 +149,12 @@ export default defineEventHandler(async (event) => {
         department,
         userType,
         yearLevel,
-        rating: profile.elo, // Use actual ELO from Convex profile
+        rating: profile.eloRating ?? profile.elo ?? 1500, // Use eloRating first, fallback to elo, then default
         ratingChange: Math.floor(Math.random() * 40) - 20, // Mock data
-        stats: { wins, losses, draws },
+        stats: { wins: finalWins, losses: finalLosses, draws: finalDraws },
         streak,
         lastActive: new Date(profile.updatedAt).toISOString(),
-        totalMatches,
+        totalMatches: profile.gamesPlayed ?? totalMatches,
         winRate
       })
     }

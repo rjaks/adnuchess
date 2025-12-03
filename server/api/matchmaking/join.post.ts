@@ -3,6 +3,14 @@ import { useStorage } from '#imports'
 import { getUserSession } from '~/server/utils/sessionStore'
 import { randomUUID } from 'crypto'
 
+// Map game modes to time control strings
+const gameModeToTimeControl: Record<string, string> = {
+  'bullet': '1+0',
+  'blitz': '5+3',
+  'rapid': '10+5',
+  'classical': '30+0'
+}
+
 type QueuePlayer = {
   userId: string
   userName: string
@@ -49,19 +57,28 @@ export default defineEventHandler(async (event) => {
   try {
     const storage = useStorage('matchmaking')
     
+    console.log(`[Matchmaking] Player ${session.user.name} (${session.user.id}) joining ${body.gameMode} queue`)
+    
     // Check if player is already in queue
     const existingQueue = await storage.getItem(`queue:${session.user.id}`)
     if (existingQueue) {
-      return { success: true, message: 'Already in queue' }
+      console.log(`[Matchmaking] Player ${session.user.name} already in queue`)
+      return { 
+        success: true, 
+        matchFound: false,
+        message: 'Already in queue' 
+      }
     }
 
     // Look for existing players in queue with same game mode
     const queueKeys = await storage.getKeys('queue:')
+    console.log(`[Matchmaking] Found ${queueKeys.length} players in queue`)
     
     for (const key of queueKeys) {
       const opponent = await storage.getItem<QueuePlayer>(key)
       if (opponent && opponent.gameMode === body.gameMode && opponent.userId !== session.user.id) {
         // Found a match! Create game
+        console.log(`[Matchmaking] Match found! ${session.user.name} vs ${opponent.userName}`)
         const gameId = randomUUID()
         
         // Randomly assign colors - but be consistent with our Convex schema:
@@ -101,25 +118,45 @@ export default defineEventHandler(async (event) => {
         await gameStorage.setItem(`game:${gameId}`, gameState)
         
         // Save game to Convex
-        const { $convex } = event.context
-        await $convex.mutation('games:createGame', {
-          gameId,
-          player1: {
-            id: gameState.player1.id,
-            name: gameState.player1.name,
-            color: "white" // Explicitly set to white
-          },
-          player2: {
-            id: gameState.player2.id,
-            name: gameState.player2.name,
-            color: "black" // Explicitly set to black
-          },
-          gameMode: body.gameMode
-        })
+        try {
+          const { $convex } = event.context
+          
+          if (!$convex) {
+            console.error('[Matchmaking] Convex client not available')
+            throw new Error('Convex client not available')
+          }
+          
+          const timeControlString = gameModeToTimeControl[body.gameMode] || undefined
+          
+          console.log(`[Matchmaking] Creating game in Convex with timeControl: ${timeControlString}`)
+          
+          await $convex.mutation('chess_games:createGame', {
+            gameId,
+            player1: {
+              id: gameState.player1.id,
+              name: gameState.player1.name,
+              color: "white" // Explicitly set to white
+            },
+            player2: {
+              id: gameState.player2.id,
+              name: gameState.player2.name,
+              color: "black" // Explicitly set to black
+            },
+            gameMode: body.gameMode,
+            timeControlString // Pass the time control string
+          })
+          
+          console.log(`[Matchmaking] Game ${gameId} created in Convex successfully`)
+        } catch (convexError) {
+          console.error('[Matchmaking] Failed to create game in Convex:', convexError)
+          // Continue anyway - game is in local storage
+        }
         
         // Remove both players from queue
         await storage.removeItem(`queue:${session.user.id}`)
         await storage.removeItem(key)
+        
+        console.log(`[Matchmaking] Game ${gameId} created. Removed both players from queue.`)
         
         return { 
           success: true, 
@@ -131,6 +168,7 @@ export default defineEventHandler(async (event) => {
     }
     
     // No match found, add to queue
+    console.log(`[Matchmaking] No match found for ${session.user.name}. Adding to queue.`)
     const queuePlayer: QueuePlayer = {
       userId: session.user.id,
       userName: session.user.name,
@@ -144,6 +182,12 @@ export default defineEventHandler(async (event) => {
     return { success: true, matchFound: false }
   } catch (error) {
     console.error('Failed to join queue:', error)
-    return { success: false, message: 'Failed to join matchmaking queue' }
+    
+    // Return proper error response instead of throwing
+    return { 
+      success: false, 
+      matchFound: false,
+      message: error instanceof Error ? error.message : 'Failed to join matchmaking queue' 
+    }
   }
 })

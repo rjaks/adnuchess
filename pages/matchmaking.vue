@@ -104,8 +104,12 @@
           <h2 class="text-lg font-semibold text-slate-900">Your Stats</h2>
           <div class="mt-4 space-y-3">
             <div class="flex items-center justify-between">
-              <span class="text-sm text-slate-600">Rating</span>
+              <span class="text-sm text-slate-600">ELO Rating</span>
               <span class="font-semibold text-[#021d94]">{{ userStats.rating }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-600">Games Played</span>
+              <span class="font-semibold text-[#021d94]">{{ userStats.gamesPlayed }}</span>
             </div>
             <div class="flex items-center justify-between">
               <span class="text-sm text-slate-600">Wins</span>
@@ -190,7 +194,7 @@ type MatchResult = {
   timeAgo: string
 }
 
-const { user } = useAuth()
+const { user, refresh: refreshAuth } = useAuth()
 
 // State
 const inQueue = ref(false)
@@ -236,13 +240,14 @@ const gameModes: GameMode[] = [
 
 const userStats = computed(() => {
   if (!user.value) {
-    return { rating: 1200, wins: 0, losses: 0, draws: 0 }
+    return { rating: 1500, wins: 0, losses: 0, draws: 0, gamesPlayed: 0 }
   }
   return {
-    rating: 1200 + (user.value.stats.wins * 25) - (user.value.stats.losses * 20),
+    rating: user.value.eloRating ?? 1500,
     wins: user.value.stats.wins,
     losses: user.value.stats.losses,
-    draws: user.value.stats.draws
+    draws: user.value.stats.draws,
+    gamesPlayed: user.value.gamesPlayed ?? 0
   }
 })
 
@@ -305,6 +310,11 @@ const joinQueue = async () => {
         statusMessage.value = `Looking for ${selectedMode.value} opponents...`
         startQueuePolling()
       }
+    } else {
+      // Failed to join queue
+      isSearching.value = false
+      const errorMsg = 'message' in response ? response.message : 'Failed to join matchmaking. Please try again.'
+      statusMessage.value = errorMsg
     }
   } catch (error) {
     console.error('Failed to join matchmaking:', error)
@@ -442,6 +452,8 @@ const getResultClass = (result: string) => {
 }
 
 onMounted(async () => {
+  // Refresh user auth to get latest ELO rating
+  await refreshAuth().catch(() => {})
   await refreshStats()
   await connectToMatchmaking()
 })
