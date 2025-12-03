@@ -3,17 +3,7 @@
     <!-- Admin Header -->
     <div class="bg-gray-800 shadow-lg">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex jusconst isAdmin = computed(() => {
-  // Authorized ADNU personnel emails
-  const adminEmails = [
-    'lojenar@gbox.adnu.edu.ph', // Your email
-    // Add other authorized ADNU admin emails here as needed
-    // 'admin@gbox.adnu.edu.ph',
-    // 'it.admin@gbox.adnu.edu.ph', 
-    // 'faculty.admin@gbox.adnu.edu.ph'
-  ]
-  return user.value && adminEmails.includes(user.value.email)
-})tween items-center py-6">
+        <div class="flex justify-between items-center py-6">
           <div>
             <h1 class="text-3xl font-bold text-white">PuzzleNida Admin</h1>
             <p class="text-gray-300 mt-1">Chess Puzzle Management System</p>
@@ -206,6 +196,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useConvex } from '~/composables/useConvex'
 import { useAuth } from '~/composables/useAuth'
+import { isAdminEmail } from '~/config/admin'
 
 // Page metadata
 definePageMeta({
@@ -230,11 +221,7 @@ const loading = ref(true)
 
 // Computed
 const isAdmin = computed(() => {
-  // Only allow your email - replace with your actual ADNU email
-  const adminEmails = [
-    'lojenar@gbox.adnu.edu.ph' // Your actual ADNU email
-  ]
-  return user.value && adminEmails.includes(user.value.email)
+  return user.value && isAdminEmail(user.value.email)
 })
 
 // Methods

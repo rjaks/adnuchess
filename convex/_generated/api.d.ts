@@ -23,6 +23,7 @@ import type * as profiles from "../profiles.js";
 import type * as puzzle_admin from "../puzzle_admin.js";
 import type * as quiz from "../quiz.js";
 import type * as quiz_admin from "../quiz_admin.js";
+import type * as tournaments from "../tournaments.js";
 import type * as test from "../test.js";
 import type * as utils_eloConstants from "../utils/eloConstants.js";
 import type * as utils_timerHelpers from "../utils/timerHelpers.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   puzzle_admin: typeof puzzle_admin;
   quiz: typeof quiz;
   quiz_admin: typeof quiz_admin;
+  tournaments: typeof tournaments;
   test: typeof test;
   "utils/eloConstants": typeof utils_eloConstants;
   "utils/timerHelpers": typeof utils_timerHelpers;

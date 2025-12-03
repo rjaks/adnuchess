@@ -131,6 +131,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useConvex } from '~/composables/useConvex'
 import { useAuth } from '~/composables/useAuth'
+import { isAdminEmail } from '~/config/admin'
 
 // Page metadata
 definePageMeta({
@@ -151,15 +152,7 @@ const stats = ref({
 
 // Computed
 const isAdmin = computed(() => {
-  // Authorized ADNU personnel emails
-  const adminEmails = [
-    'lojenar@gbox.adnu.edu.ph', // Your email
-    // Add other authorized ADNU admin emails here as needed
-    // 'admin@gbox.adnu.edu.ph',
-    // 'it.admin@gbox.adnu.edu.ph',
-    // 'faculty.admin@gbox.adnu.edu.ph'
-  ]
-  return user.value && adminEmails.includes(user.value.email)
+  return user.value && isAdminEmail(user.value.email)
 })
 
 // Methods

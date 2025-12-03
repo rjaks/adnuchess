@@ -30,23 +30,33 @@
         </div>
       </NuxtLink>
 
-      <!-- Battle Royale Card (Coming Soon) -->
-      <div class="p-6 bg-gray-100/70 border border-gray-200/60 rounded-2xl shadow-sm opacity-60">
+      <!-- Battle Royale Card -->
+      <NuxtLink 
+        to="/battle-royale"
+        class="group block p-6 bg-gradient-to-br from-orange-50/70 to-red-50/70 border border-orange-200/60 rounded-2xl shadow-sm hover:shadow-md hover:from-orange-50/90 hover:to-red-50/90 transition-all duration-200"
+      >
         <div class="flex items-center gap-4 mb-4">
-          <div class="flex items-center justify-center w-12 h-12 bg-gray-200 rounded-xl">
-            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl group-hover:shadow-lg transition-all">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"></path>
             </svg>
           </div>
           <div>
-            <h3 class="text-lg font-semibold text-gray-700">Battle Royale</h3>
-            <p class="text-sm text-gray-500">Coming Soon</p>
+            <h3 class="text-lg font-semibold text-slate-800 group-hover:text-orange-600 transition-colors">Battle Royale</h3>
+            <p class="text-sm text-orange-600 font-medium">Tournament Mode 🏆</p>
           </div>
         </div>
-        <p class="text-gray-500 text-sm leading-relaxed">
-          Compete against multiple players in fast-paced elimination rounds. Last player standing wins the crown!
+        <p class="text-slate-600 text-sm leading-relaxed">
+          Compete against multiple players in tournament brackets! Last chess player standing wins the championship. Join or create your own tournament.
         </p>
-      </div>
+        <div class="mt-4 flex items-center text-sm text-orange-600 font-medium">
+          <span>Enter Tournament</span>
+          <svg class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+          </svg>
+        </div>
+      </NuxtLink>
 
       <!-- QuizMania Card -->
       <NuxtLink 

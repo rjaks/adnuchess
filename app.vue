@@ -326,6 +326,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { navigateTo, useFetch, useRoute } from '#imports'
 import { useAuth } from '~/composables/useAuth'
 import type { AuthUser } from '~/composables/useAuth'
+import { isAdminEmail } from '~/config/admin'
 
 // Set favicon and COOP headers for all pages
 useHead({
@@ -431,15 +432,7 @@ const isLoggedIn = computed(() => Boolean(authUser.value))
 
 // Admin authorization check
 const isAdmin = computed(() => {
-  // Authorized ADNU personnel emails
-  const adminEmails = [
-    'lojenar@gbox.adnu.edu.ph', // Your email
-    // Add other authorized ADNU admin emails here as needed
-    // 'admin@gbox.adnu.edu.ph',
-    // 'it.admin@gbox.adnu.edu.ph',
-    // 'faculty.admin@gbox.adnu.edu.ph'
-  ]
-  return authUser.value && adminEmails.includes(authUser.value.email)
+  return authUser.value && isAdminEmail(authUser.value.email)
 })
 
 const authUserName = computed(() => authUser.value?.name || authUser.value?.email || 'AdNU Player')

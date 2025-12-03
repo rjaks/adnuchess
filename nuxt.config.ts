@@ -37,8 +37,8 @@ export default defineNuxtConfig({
     sessionTtlDays,
     public: {
       googleClientId: publicGoogleClientId,
-      // 👇 add this line
       convexUrl: process.env.NUXT_PUBLIC_CONVEX_URL || '',
+      convexFallbackUrl: process.env.NUXT_PUBLIC_CONVEX_FALLBACK_URL || '',
     },
   },
   nitro: {
