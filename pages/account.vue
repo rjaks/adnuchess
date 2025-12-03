@@ -299,8 +299,7 @@
                 :class="performanceBarClass"
                 :style="{ width: Math.max(winPercentage, 10) + '%' }"
               ></div>
-            </div>
-            <div class="flex justify-between text-xs text-slate-500 mt-1">
+            </div>            <div class="flex justify-between text-xs text-slate-500 mt-1">
               <span>Beginner</span>
               <span>Expert</span>
             </div>
@@ -308,6 +307,9 @@
         </div>
       </div>
     </section>
+
+    <!-- Match History Section -->
+    <MatchHistoryList v-if="profile?.id" :target-user-id="profile.id" />
   </section>
 
   <!-- Photo Upload Modal -->

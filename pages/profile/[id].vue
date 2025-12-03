@@ -241,6 +241,9 @@
       </div>
     </section>
 
+    <!-- Match History Section -->
+    <MatchHistoryList v-if="playerId" :target-user-id="playerId" />
+
     <!-- Back to Search Button -->
     <div class="text-center">
       <button 
