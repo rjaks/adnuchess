@@ -310,3 +310,79 @@ export const makeMove = mutation({
     };
   },
 });
+
+export const getMatchHistory = query({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    // Get all games where the user is player1
+    const player1Games = await ctx.db
+      .query("games")
+      .withIndex("by_player", (q) => q.eq("player1.id", userId))
+      .collect();
+
+    // Get all games where the user is player2
+    const player2Games = await ctx.db
+      .query("games")
+      .withIndex("by_player2", (q) => q.eq("player2.id", userId))
+      .collect();
+
+    // Combine all games
+    const allGames = [...player1Games, ...player2Games];
+
+    // Filter only finished games (exclude 'active' and 'waiting' status)
+    const finishedGames = allGames.filter(
+      (game) => game.status === "finished"
+    );
+
+    // Process each game to get match history data
+    const matchHistoryPromises = finishedGames.map(async (game) => {
+      // Determine if user is player1 or player2
+      const isPlayer1 = game.player1.id === userId;
+      const userColor = isPlayer1 ? game.player1.color : game.player2.color;
+      const opponent = isPlayer1 ? game.player2 : game.player1;
+      const opponentId = opponent.id;
+
+      // Fetch opponent's profile for current rating
+      const opponentProfile = await ctx.db
+        .query("profiles")
+        .withIndex("by_userId", (q) => q.eq("userId", opponentId))
+        .unique();
+
+      // Determine result from user's perspective
+      let result: "Win" | "Loss" | "Draw";
+      
+      if (game.winner === "draw" || game.result === "stalemate" || game.result === "agreement") {
+        result = "Draw";
+      } else if (game.winner === userId) {
+        // User won directly by ID
+        result = "Win";
+      } else if (game.winner === userColor) {
+        // User won by color (e.g., "white" or "black")
+        result = "Win";
+      } else if (game.winner && game.winner !== "expired") {
+        // Someone else won
+        result = "Loss";
+      } else {
+        // Edge case: game marked finished but no clear winner (e.g., expired)
+        result = "Draw";
+      }
+
+      return {
+        gameId: game.gameId,
+        opponentName: opponentProfile?.name ?? opponent.name,
+        opponentId: opponentId,
+        opponentRating: opponentProfile?.eloRating ?? 1500, // Default rating if not found
+        result,
+        datePlayed: game.createdAt,
+      };
+    });
+
+    // Resolve all promises
+    const matchHistory = await Promise.all(matchHistoryPromises);
+
+    // Sort by datePlayed (newest first)
+    matchHistory.sort((a, b) => b.datePlayed - a.datePlayed);
+
+    return matchHistory;
+  },
+});
