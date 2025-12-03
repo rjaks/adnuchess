@@ -32,7 +32,8 @@ export const resignGame = mutation({
     await ctx.db.patch(game._id, {
       status: "finished",
       winner,
-      endReason: "resignation"
+      endReason: "resignation",
+      result: "resignation"
     });
 
     return {
@@ -109,13 +110,13 @@ export const respondToDrawOffer = mutation({
     // Check if there is a draw offer to this player
     if (!game.drawOffer || game.drawOffer.offeredTo !== playerId) {
       throw new Error("No draw offer to respond to");
-    }
-
-    if (accepted) {      // End the game as a draw
+    }    if (accepted) {
+      // End the game as a draw
       await ctx.db.patch(game._id, {
         status: "finished",
         winner: "draw",
         endReason: "draw_agreement",
+        result: "agreement",
         drawOffer: undefined
       });
 

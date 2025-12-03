@@ -133,9 +133,7 @@
             </button>
           </div>
         </div>
-      </div>
-
-      <!-- Resign confirmation modal -->
+      </div>      <!-- Resign confirmation modal -->
       <div v-if="showResignConfirmation" class="fixed inset-0 bg-black/50 flex items-center justify-center z-10">
         <div class="bg-white rounded-xl p-6 shadow-xl max-w-sm w-full mx-4">
           <h3 class="text-lg font-bold text-slate-900">Confirm Resignation</h3>
@@ -156,15 +154,32 @@
           </div>
         </div>
       </div>
+
+      <!-- Game End Modal -->
+      <ChessGameEndModal
+        v-if="gameEndInfo && showGameEndModal"
+        :is-visible="showGameEndModal"
+        :winner="gameEndInfo.winner || 'draw'"
+        :result="gameEndInfo.result"
+        :winner-name="gameEndInfo.winnerName"
+        :loser-name="gameEndInfo.loserName"
+        :my-color="myColor"
+        :player1-name="gameState?.player1.name"
+        :player2-name="gameState?.player2.name"
+        @close="closeGameEndModal"
+        @view-analysis="viewAnalysis"
+        @rematch="goToRematch"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useChessClock } from '~/composables/useChessClock'
 import { Chess } from 'chess.js'
+import { useRouter } from 'vue-router'
 import { api } from '~/convex/_generated/api'
 
 // Define Chess.js types since they're not exported properly
@@ -193,6 +208,8 @@ type GameState = {
   player2: { id: string; name: string; color: 'white' | 'black'; avatarUrl?: string }
   status: 'waiting' | 'active' | 'finished'
   winner?: string
+  result?: 'checkmate' | 'stalemate' | 'resignation' | 'timeout' | 'agreement' | 'abandonment'
+  endReason?: string
   gameMode: string
   createdAt: number
   moveHistory: string[]
@@ -355,6 +372,137 @@ const opponentInitials = computed(() => {
   return opponent.value.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 })
 
+// Game end detection
+type GameEndInfo = {
+  isFinished: boolean
+  winner: 'white' | 'black' | 'draw' | null
+  winnerName: string
+  loserName: string
+  winnerColor: 'white' | 'black' | null
+  loserColor: 'white' | 'black' | null
+  result: string
+  message: string
+  isVictory: boolean // true if current user won
+  isDraw: boolean
+}
+
+const gameEndInfo = computed((): GameEndInfo | null => {
+  if (!gameState.value || gameState.value.status !== 'finished') {
+    return null
+  }
+
+  const isFinished = true
+  const result = gameState.value.result || 'unknown'
+  const winner = gameState.value.winner
+  
+  // Determine winner/loser details
+  let winnerColor: 'white' | 'black' | null = null
+  let loserColor: 'white' | 'black' | null = null
+  let winnerName = ''
+  let loserName = ''
+  let isDraw = false
+  
+  if (winner === 'draw') {
+    isDraw = true
+    winnerName = 'Draw'
+    loserName = 'Draw'
+  } else if (winner) {
+    // Winner is a player ID
+    const winnerPlayer = gameState.value.player1.id === winner 
+      ? gameState.value.player1 
+      : gameState.value.player2
+    const loserPlayer = gameState.value.player1.id === winner 
+      ? gameState.value.player2 
+      : gameState.value.player1
+    
+    winnerColor = winnerPlayer.color
+    loserColor = loserPlayer.color
+    winnerName = winnerPlayer.name
+    loserName = loserPlayer.name
+  }
+  
+  // Determine if current user won
+  const isVictory = !isDraw && winner === user.value?.id
+  
+  // Create user-friendly message
+  let message = ''
+  switch (result) {
+    case 'checkmate':
+      message = isDraw ? 'Draw by stalemate' : `Checkmate! ${winnerName} wins!`
+      break
+    case 'stalemate':
+      message = 'Draw by stalemate'
+      isDraw = true
+      break
+    case 'resignation':
+      message = `${winnerName} wins by resignation`
+      break
+    case 'timeout':
+      message = `${winnerName} wins on time`
+      break
+    case 'agreement':
+      message = 'Draw by agreement'
+      isDraw = true
+      break
+    case 'abandonment':
+      message = `${winnerName} wins by abandonment`
+      break
+    default:
+      message = isDraw ? 'Game ended in a draw' : `${winnerName} wins!`
+  }
+  
+  return {
+    isFinished,
+    winner: isDraw ? 'draw' : winnerColor,
+    winnerName,
+    loserName,
+    winnerColor,
+    loserColor,
+    result,
+    message,
+    isVictory,
+    isDraw
+  }
+})
+
+// Track previous game status to detect changes
+const previousGameStatus = ref<'waiting' | 'active' | 'finished' | null>(null)
+
+// Watch for game end
+watch(
+  () => gameState.value?.status,
+  (newStatus, oldStatus) => {
+    if (newStatus === 'finished' && oldStatus === 'active') {
+      console.log('[Game End] Game finished detected!', gameEndInfo.value)
+      
+      // Emit event for parent components or trigger modal
+      if (gameEndInfo.value) {
+        handleGameFinished(gameEndInfo.value)
+      }
+    }
+    previousGameStatus.value = newStatus || null
+  }
+)
+
+// Handler for game finished event
+const handleGameFinished = (endInfo: GameEndInfo) => {
+  console.log('[Game End] Handling game end:', endInfo)
+  
+  // Exit review mode if active
+  if (reviewMode.value) {
+    exitReviewMode()
+  }
+  
+  // Clear any active selections
+  selectedSquare.value = null
+  legalMovesCache.value.clear()
+  
+  // Show the game end modal after a brief delay for better UX
+  setTimeout(() => {
+    showGameEndModal.value = true
+  }, 500)
+}
+
 // Watch selectedSquare and update cache immediately
 watch(selectedSquare, (newSquare) => {
   const cacheStart = performance.now()
@@ -439,8 +587,7 @@ const loadGameState = async () => {
       // Fetch player avatars from profiles
       const player1Profile = await $convex.query(api.profiles.getByUserId, { userId: response.player1.id })
       const player2Profile = await $convex.query(api.profiles.getByUserId, { userId: response.player2.id })
-      
-      gameState.value = {
+        gameState.value = {
         id: response.gameId,
         fen: response.fen,
         lastMove: response.lastMove || null,
@@ -456,19 +603,28 @@ const loadGameState = async () => {
         },
         status: response.status,
         winner: response.winner,
+        result: response.result,
+        endReason: response.endReason,
         gameMode: response.gameMode,
         createdAt: response.createdAt,
         moveHistory: response.moveHistory,
         // Timer fields
         whiteTimeMs: response.whiteTimeMs,
         blackTimeMs: response.blackTimeMs,
-        timeControl: response.timeControl,
-        lastMoveTimestamp: response.lastMoveTimestamp,
+        timeControl: response.timeControl,        lastMoveTimestamp: response.lastMoveTimestamp,
         gameStartTimestamp: response.gameStartTimestamp,
         timeoutWinner: response.timeoutWinner
-      }
+      };
+      
       game.value = new Chess(response.fen)
       lastPolledTime.value = response.lastMoveTime
+      
+      // If game is already finished when loading (e.g., page refresh), show modal
+      if (response.status === 'finished') {
+        setTimeout(() => {
+          showGameEndModal.value = true
+        }, 1000)
+      }
     }
     
     connectionStatus.value = 'Connected'
@@ -878,8 +1034,7 @@ const setupSubscription = () => {
         drawOffered.value = false      }
       
       connectionStatus.value = 'Connected'
-      
-      gameState.value = {
+        gameState.value = {
         id: updatedGame.gameId,
         fen: updatedGame.fen,
         lastMove: updatedGame.lastMove || null,
@@ -895,6 +1050,8 @@ const setupSubscription = () => {
         },
         status: updatedGame.status,
         winner: updatedGame.winner,
+        result: updatedGame.result,
+        endReason: updatedGame.endReason,
         gameMode: updatedGame.gameMode || 'standard',
         createdAt: updatedGame.createdAt,
         moveHistory: updatedGame.moveHistory || [],
@@ -930,6 +1087,7 @@ const setupSubscription = () => {
 const showResignConfirmation = ref(false)
 const drawOffered = ref(false)
 const drawOfferInbound = ref(false)
+const showGameEndModal = ref(false)
 const isGameInProgress = computed(() => {
   return gameState.value?.status === 'active' || gameState.value?.status === 'waiting'
 })
@@ -1017,8 +1175,7 @@ const respondToDrawOffer = async (accepted: boolean) => {
       connectionStatus.value = 'Draw accepted'
     } else {
       connectionStatus.value = 'Draw declined'
-    }
-  } catch (error) {
+    }  } catch (error) {
     console.error('Failed to respond to draw offer:', error)
     gameError.value = 'Failed to respond: ' + (error instanceof Error ? error.message : String(error))
     
@@ -1030,6 +1187,40 @@ const respondToDrawOffer = async (accepted: boolean) => {
     // Re-enable the draw offer if it failed
     drawOfferInbound.value = true
   }
+}
+
+// Game End Modal event handlers
+const closeGameEndModal = () => {
+  showGameEndModal.value = false
+}
+
+const viewAnalysis = () => {
+  // Close the modal
+  showGameEndModal.value = false
+  
+  // Enter review mode at the last move
+  if (gameState.value && gameState.value.moveHistory.length > 0) {
+    reviewMoveIndex.value = gameState.value.moveHistory.length - 1
+    reviewMode.value = true
+      // Reconstruct the game state at the last move
+    const reviewGame = new Chess()
+    for (let i = 0; i <= reviewMoveIndex.value; i++) {
+      const move = gameState.value.moveHistory[i]
+      if (move) {
+        reviewGame.move(move)
+      }
+    }
+    game.value = reviewGame
+  }
+}
+
+const goToRematch = () => {
+  // Close the modal
+  showGameEndModal.value = false
+  
+  // Navigate to matchmaking for a new game
+  const router = useRouter()
+  router.push('/matchmaking')
 }
 
 // Chat functions - helper moved to component

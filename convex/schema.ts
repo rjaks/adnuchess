@@ -41,6 +41,14 @@ export default defineSchema({
     status: v.union(v.literal("waiting"), v.literal("active"), v.literal("finished")),
     winner: v.optional(v.string()),
     endReason: v.optional(v.string()),
+    result: v.optional(v.union(
+      v.literal("checkmate"),
+      v.literal("stalemate"),
+      v.literal("resignation"),
+      v.literal("timeout"),
+      v.literal("agreement"),
+      v.literal("abandonment")
+    )),
     drawOffer: v.optional(v.object({
       offeredBy: v.string(),
       offeredTo: v.string(),

@@ -192,8 +192,7 @@ export const makeMove = mutation({
         game.timeControl,
         playerColor,
         now
-      );
-        if (timerUpdate.timedOut && timerUpdate.timeoutWinner) {
+      );      if (timerUpdate.timedOut && timerUpdate.timeoutWinner) {
         console.log(`[Convex] Player ${playerColor} timed out! Winner: ${timerUpdate.timeoutWinner}`);
         
         // Player ran out of time before making move
@@ -201,6 +200,7 @@ export const makeMove = mutation({
           status: "finished" as const,
           winner: timerUpdate.timeoutWinner === 'white' ? game.player1.id : game.player2.id,
           endReason: `timeout_${playerColor}`,
+          result: "timeout" as const,
           timeoutWinner: timerUpdate.timeoutWinner,
           whiteTimeMs: timerUpdate.whiteTimeMs,
           blackTimeMs: timerUpdate.blackTimeMs,
@@ -291,8 +291,7 @@ export const makeMove = mutation({
     // IMPORTANT: Avoiding any reference to game_over() which causes issues
     const legalMoves = chess.moves();
     console.log(`[Convex] Legal moves after this move: ${legalMoves.length}`);
-    
-    if (legalMoves.length === 0) {
+      if (legalMoves.length === 0) {
       console.log("[Convex] No legal moves available, game is over");
       // @ts-ignore
       patch.status = "finished";
@@ -315,13 +314,22 @@ export const makeMove = mutation({
         // Checkmate - current player wins
         // @ts-ignore
         patch.winner = playerId;
+        // @ts-ignore
+        patch.result = "checkmate";
+        // @ts-ignore
+        patch.endReason = "checkmate";
         console.log(`[Convex] Player ${playerId} wins by checkmate`);
       } else {
         // Stalemate - draw
         // @ts-ignore
         patch.winner = "draw";
+        // @ts-ignore
+        patch.result = "stalemate";
+        // @ts-ignore
+        patch.endReason = "stalemate";
         console.log("[Convex] Game ended in stalemate (draw)");
-      }    }
+      }
+    }
     
     // Update the game in database
     console.log(`[Convex] About to patch game with:`, patch);
@@ -361,8 +369,7 @@ export const checkTimeout = mutation({
     };
     
     const timeoutWinner = checkForTimeout(timerState, game.currentTurn, Date.now());
-    
-    if (timeoutWinner) {
+      if (timeoutWinner) {
       console.log(`[Convex Heartbeat] Timeout detected! Winner: ${timeoutWinner}`);
       
       // Update game to finished state
@@ -370,6 +377,7 @@ export const checkTimeout = mutation({
         status: "finished" as const,
         winner: timeoutWinner === 'white' ? game.player1.id : game.player2.id,
         endReason: `timeout_${game.currentTurn}`,
+        result: "timeout" as const,
         timeoutWinner: timeoutWinner,
         whiteTimeMs: game.currentTurn === 'white' ? 0 : (game.whiteTimeMs || game.timeControl.baseTimeMs),
         blackTimeMs: game.currentTurn === 'black' ? 0 : (game.blackTimeMs || game.timeControl.baseTimeMs),
