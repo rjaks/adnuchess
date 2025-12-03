@@ -21,6 +21,9 @@ export type AuthUser = {
   stats: AuthStats
   badges: AuthBadge[]
   achievements: AuthBadge[]
+  // ELO Rating fields
+  eloRating?: number
+  gamesPlayed?: number
 }
 
 type SessionResponse = {

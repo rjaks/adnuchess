@@ -485,7 +485,7 @@ watch(
 )
 
 // Handler for game finished event
-const handleGameFinished = (endInfo: GameEndInfo) => {
+const handleGameFinished = async (endInfo: GameEndInfo) => {
   console.log('[Game End] Handling game end:', endInfo)
   
   // Exit review mode if active
@@ -497,11 +497,35 @@ const handleGameFinished = (endInfo: GameEndInfo) => {
   selectedSquare.value = null
   legalMovesCache.value.clear()
   
+  // Update ELO ratings for both players
+  try {
+    const { $convex } = useNuxtApp()
+    const eloResult = await $convex.mutation(api.chess_games_gameEnd.updateEloAfterGame, {
+      gameId: props.gameId
+    })
+    
+    if (eloResult.alreadyUpdated) {
+      console.log('[ELO] Ratings were already updated for this game')
+    } else {
+      console.log('[ELO] Ratings updated successfully:', eloResult)
+      // Store ELO changes for display in the modal
+      eloChanges.value = eloResult
+    }
+  } catch (error) {
+    console.error('[ELO] Failed to update ratings:', error)
+  }
+  
   // Show the game end modal after a brief delay for better UX
   setTimeout(() => {
     showGameEndModal.value = true
   }, 500)
 }
+
+// Store ELO changes for display
+const eloChanges = ref<{
+  white: { oldRating: number; newRating: number; change: number };
+  black: { oldRating: number; newRating: number; change: number };
+} | null>(null)
 
 // Watch selectedSquare and update cache immediately
 watch(selectedSquare, (newSquare) => {

@@ -12,7 +12,19 @@ export default defineSchema({
     ),
     department: v.optional(v.string()),
     departmentLastChanged: v.optional(v.number()),
-    elo: v.number(),
+    
+    // ELO Rating System Fields (optional for backward compatibility with existing data)
+    eloRating: v.optional(v.number()), // Current ELO rating (default: 1500 for new players)
+    gamesPlayed: v.optional(v.number()), // Total number of completed games
+    
+    // Game Statistics
+    wins: v.optional(v.number()), // Total wins
+    losses: v.optional(v.number()), // Total losses
+    draws: v.optional(v.number()), // Total draws
+    
+    // Legacy field - keeping for backward compatibility
+    elo: v.optional(v.number()),
+    
     picture: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -74,6 +86,9 @@ export default defineSchema({
     lastMoveTimestamp: v.optional(v.number()),
     gameStartTimestamp: v.optional(v.number()),
     timeoutWinner: v.optional(v.union(v.literal("white"), v.literal("black"))),
+    
+    // ELO rating update flag (ensures ratings are updated exactly once)
+    ratingsUpdated: v.optional(v.boolean()),
   })
     .index("by_gameId", ["gameId"])
     .index("by_player", ["player1.id"])

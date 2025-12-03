@@ -16,6 +16,9 @@ export type UserRecord = {
   stats: UserStats
   badges: string[]
   achievements: string[]
+  // ELO Rating fields (synced from Convex)
+  eloRating?: number
+  gamesPlayed?: number
 }
 
 export type UserBadge = {

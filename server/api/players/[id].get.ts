@@ -89,27 +89,24 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Mock stats for now (in a real app, you'd calculate from matches)
-    // Use consistent random seed based on userId for reproducible results
-    const seed = playerId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-    const random = (seed: number) => {
-      const x = Math.sin(seed) * 10000
-      return x - Math.floor(x)
-    }
-    
-    const wins = Math.floor(random(seed) * 30)
-    const losses = Math.floor(random(seed + 1) * 20)
-    const draws = Math.floor(random(seed + 2) * 10)
-    const totalMatches = wins + losses + draws
+    // Get stats from stored profile fields
+    const wins = profile.wins ?? 0
+    const losses = profile.losses ?? 0
+    const draws = profile.draws ?? 0
+    const gamesPlayed = profile.gamesPlayed ?? 0
+    const totalMatches = gamesPlayed > 0 ? gamesPlayed : (wins + losses + draws)
     const winRate = totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0
+
+    // Use eloRating field first, fallback to elo, then default to 1500
+    const rating = profile.eloRating ?? profile.elo ?? 1500
 
     const playerProfile: PlayerProfile = {
       id: profile.userId,
       name: profile.displayName || profile.name,
       email: profile.email,
       picture: profile.picture,
-      rating: profile.elo,
-      department,
+      rating,
+      department: profile.department || department,
       userType,
       yearLevel,
       displayName: profile.displayName,
