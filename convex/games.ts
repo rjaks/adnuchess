@@ -386,3 +386,69 @@ export const getMatchHistory = query({
     return matchHistory;
   },
 });
+
+export const getGameDetails = query({
+  args: { gameId: v.string() },
+  handler: async (ctx, { gameId }) => {
+    // Fetch the game document
+    const game = await ctx.db
+      .query("games")
+      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+      .first();
+
+    if (!game) {
+      return null;
+    }
+
+    // Determine white and black players based on color
+    const whitePlayer = game.player1.color === "white" ? game.player1 : game.player2;
+    const blackPlayer = game.player1.color === "black" ? game.player1 : game.player2;
+
+    // Fetch player profiles for enrichment
+    const whiteProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", whitePlayer.id))
+      .first();
+
+    const blackProfile = await ctx.db
+      .query("profiles")
+      .withIndex("by_userId", (q) => q.eq("userId", blackPlayer.id))
+      .first();
+
+    // Build enriched response
+    return {
+      gameId: game.gameId,
+      whiteId: whitePlayer.id,
+      blackId: blackPlayer.id,
+      status: game.status,
+      winner: game.winner ?? null,
+      result: game.result ?? null,
+      endReason: game.endReason ?? null,
+      moveHistory: game.moveHistory,
+      fen: game.fen,
+      currentTurn: game.currentTurn,
+      gameMode: game.gameMode,
+      gameCreationTime: game.createdAt,
+      lastMoveTime: game.lastMoveTime,
+      // Time control fields (if present)
+      timeControl: game.timeControl ?? null,
+      whiteTimeMs: game.whiteTimeMs ?? null,
+      blackTimeMs: game.blackTimeMs ?? null,
+      // Enriched player data
+      white: {
+        id: whitePlayer.id,
+        name: whiteProfile?.name ?? whitePlayer.name,
+        displayName: whiteProfile?.displayName ?? null,
+        eloRating: whiteProfile?.eloRating ?? 1500,
+        picture: whiteProfile?.picture ?? null,
+      },
+      black: {
+        id: blackPlayer.id,
+        name: blackProfile?.name ?? blackPlayer.name,
+        displayName: blackProfile?.displayName ?? null,
+        eloRating: blackProfile?.eloRating ?? 1500,
+        picture: blackProfile?.picture ?? null,
+      },
+    };
+  },
+});

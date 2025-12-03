@@ -34,7 +34,8 @@
             <th class="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Result</th>
             <th class="pb-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Opponent</th>
             <th class="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Rating</th>
-            <th class="pb-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+            <th class="pb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Date</th>
+            <th class="pb-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -72,10 +73,23 @@
             </td>
 
             <!-- Date Played -->
-            <td class="py-4 text-right">
+            <td class="py-4 text-center">
               <span class="text-sm text-slate-500">
                 {{ formatDate(match.datePlayed) }}
               </span>
+            </td>
+
+            <!-- Actions -->
+            <td class="py-4 text-right">
+              <NuxtLink 
+                :to="`/game/${match.gameId}?analyze=true`"
+                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#021d94]/10 text-[#021d94] hover:bg-[#021d94]/20 transition-colors text-xs font-semibold"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Analyze
+              </NuxtLink>
             </td>
           </tr>
         </tbody>
