@@ -8,22 +8,36 @@ declare module 'stockfish' {
 }
 
 declare module 'chess.js' {
+  export type PieceSymbol = 'p' | 'r' | 'n' | 'b' | 'q' | 'k'
+  export type Square = string
+
+  export interface Move {
+    color: 'w' | 'b'
+    from: Square
+    to: Square
+    flags: string
+    piece: PieceSymbol
+    san?: string
+    promotion?: string
+  }
+
   export class Chess {
     constructor(fen?: string)
-    move(move: string | { from: string; to: string; promotion?: string }): any
-    moves(options?: { square?: string; verbose?: boolean }): string[]
+    move(move: string | { from: string; to: string; promotion?: string }): Move | null
+    moves(options?: { square?: string; verbose?: boolean }): Move[]
     fen(): string
     pgn(): string
-    game_over(): boolean
-    in_check(): boolean
-    in_checkmate(): boolean
-    in_stalemate(): boolean
+    history(): string[]
+    isGameOver(): boolean
+    isCheck(): boolean
+    isCheckmate(): boolean
+    isStalemate(): boolean
     turn(): 'w' | 'b'
-    board(): any[][]
-    get(square: string): any
-    put(piece: any, square: string): boolean
+    board(): Array<Array<{ type: PieceSymbol; color: 'w' | 'b' } | null>>
+    get(square: string): { type: PieceSymbol; color: 'w' | 'b' } | null
+    put(piece: { type: PieceSymbol; color: 'w' | 'b' }, square: string): boolean
     remove(square: string): any
     reset(): void
-    undo(): any
+    undo(): Move | null
   }
 }

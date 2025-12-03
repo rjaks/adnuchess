@@ -233,8 +233,7 @@ import { Chess, type Move, type PieceSymbol, type Square } from 'chess.js'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, nextTick } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import type { AuthUser } from '~/composables/useAuth'
-
-type WorkerConstructor = typeof Worker
+import createStockfish from '~/utils/stockfish-production'
 
 interface MatchHistory {
   id: string
@@ -302,6 +301,7 @@ const boardSquares = computed<VisualSquare[]>(() => {
   for (let rankIndex = 0; rankIndex < 8; rankIndex++) {
     const rank = ranks[rankIndex]
     const row = board[rankIndex]
+    if (!row) continue
     for (let fileIndex = 0; fileIndex < 8; fileIndex++) {
       const file = files[fileIndex]
       const square = `${file}${rank}` as Square
@@ -323,9 +323,11 @@ const moveLog = computed(() => {
   const pairs: Array<{ index: number; white: string; black?: string }> = []
   const moves = historySAN.value
   for (let i = 0; i < moves.length; i += 2) {
+    const white = moves[i]
+    if (!white) continue
     pairs.push({
       index: i / 2 + 1,
-      white: moves[i],
+      white: white,
       black: moves[i + 1],
     })
   }
@@ -389,7 +391,7 @@ const handleSquareClick = (square: Square) => {
     return
   }
 
-  makePlayerMove(move.from as Square, move.to as Square, move.promotion ?? 'q')
+  makePlayerMove(move.from as Square, move.to as Square, (move.promotion || 'q') as 'q' | 'r' | 'b' | 'n')
 }
 
 const makePlayerMove = (from: Square, to: Square, promotion: 'q' | 'r' | 'b' | 'n') => {
@@ -621,19 +623,20 @@ const spawnEngine = async () => {
   engineReady.value = false
   engineThinking.value = false
   if (engine) {
-    engine.terminate()
+    try {
+      engine.terminate()
+    } catch (e) {
+      // some Stockfish instances don't implement terminate
+    }
     engine = null
   }
   statusMessage.value = 'Booting Stockfish engine...'
   try {
-    const { default: StockfishWorker } = (await import('stockfish/src/stockfish-nnue-16-single.js?worker')) as {
-      default: WorkerConstructor
-    }
-    const worker = new StockfishWorker()
+    const worker = await createStockfish()
     worker.onmessage = (event: MessageEvent<string>) => {
       handleEngineMessage(event.data)
     }
-    worker.onerror = (event) => {
+    worker.onerror = (event: ErrorEvent) => {
       console.error('Stockfish worker error', event)
     }
     engine = worker

@@ -165,4 +165,86 @@ export default defineSchema({
     .index("by_category_difficulty", ["category", "difficulty"])
     .index("by_bestScore", ["bestScore"])
     .index("by_bestAccuracy", ["bestAccuracy"]),
+
+  // Battle Royale Tournament Tables
+  tournaments: defineTable({
+    name: v.string(),
+    status: v.union(
+      v.literal("waiting"), // Waiting for players to join
+      v.literal("ready"), // Enough players, ready to start
+      v.literal("active"), // Tournament in progress
+      v.literal("completed") // Tournament finished
+    ),
+    maxPlayers: v.number(), // e.g., 16, 32 for bracket sizes
+    currentPlayers: v.number(),
+    players: v.array(v.object({
+      userId: v.string(),
+      name: v.string(),
+      elo: v.number(),
+      joinedAt: v.number(),
+      status: v.union(
+        v.literal("active"), // Still in tournament
+        v.literal("eliminated"), // Lost and out
+        v.literal("winner") // Won the tournament
+      ),
+      position: v.optional(v.number()), // Final ranking
+    })),
+    rounds: v.array(v.object({
+      roundNumber: v.number(),
+      matches: v.array(v.object({
+        matchId: v.string(),
+        player1Id: v.string(),
+        player2Id: v.optional(v.string()), // Optional for byes
+        gameId: v.optional(v.id("games")),
+        winnerId: v.optional(v.string()),
+        status: v.union(
+          v.literal("pending"), // Not started yet
+          v.literal("active"), // Game in progress
+          v.literal("completed") // Game finished
+        ),
+      })),
+      status: v.union(
+        v.literal("pending"),
+        v.literal("active"),
+        v.literal("completed")
+      ),
+    })),
+    currentRound: v.number(),
+    winnerId: v.optional(v.string()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_createdAt", ["createdAt"]),
+
+  tournamentMatches: defineTable({
+    tournamentId: v.id("tournaments"),
+    roundNumber: v.number(),
+    matchIndex: v.number(),
+    player1: v.object({
+      userId: v.string(),
+      name: v.string(),
+      color: v.union(v.literal("white"), v.literal("black"))
+    }),
+    player2: v.optional(v.object({
+      userId: v.string(),
+      name: v.string(),
+      color: v.union(v.literal("white"), v.literal("black"))
+    })),
+    gameId: v.optional(v.id("games")),
+    winnerId: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("completed")
+    ),
+    createdAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_tournament", ["tournamentId"])
+    .index("by_status", ["status"])
+    .index("by_round", ["tournamentId", "roundNumber"]),
 });
