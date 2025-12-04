@@ -5,3 +5,18 @@
 @layer base {
   html { @apply bg-slate-50 text-slate-900; }
 }
+
+@layer components {
+  /* Unify panel rounding across the app for consistent soft corners */
+  :is(.rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-4xl) {
+    border-radius: 24px;
+  }
+
+  .rounded-panel {
+    border-radius: 28px;
+  }
+
+  .rounded-panel-soft {
+    border-radius: 22px;
+  }
+}

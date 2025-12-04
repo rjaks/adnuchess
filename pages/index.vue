@@ -1,7 +1,7 @@
 ﻿<template>
   <section class="space-y-16 pb-12">
     <div class="grid items-center gap-12 lg:grid-cols-[1.1fr,0.9fr]">
-      <div class="relative overflow-hidden rounded-4xl border border-white/60 bg-white/70 p-10 shadow-glass backdrop-blur-xl">
+      <div class="bubble-card relative overflow-hidden border border-white/60 bg-white/70 p-10 shadow-glass backdrop-blur-xl">
         <div class="absolute -right-10 top-10 h-40 w-40 rounded-full bg-[#ffaa00]/30 blur-2xl"></div>
         <div class="absolute -bottom-10 left-20 h-44 w-44 rounded-full bg-[#021d94]/30 blur-2xl"></div>
         <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/80">Exclusive for Ateneo de Naga</p>
@@ -53,7 +53,7 @@
           <div
             v-for="stat in heroStats"
             :key="stat.label"
-            class="rounded-3xl border border-white/70 bg-white/80 px-5 py-4 text-slate-700 shadow-inner"
+            class="bubble-card-soft border border-white/70 bg-white/80 px-5 py-4 text-slate-700 shadow-inner"
           >
             <p class="text-2xl font-semibold text-[#021d94]">{{ stat.value }}</p>
             <p class="text-xs uppercase tracking-wide text-slate-500">{{ stat.label }}</p>
@@ -67,7 +67,7 @@
           <div
             v-for="card in highlightCards"
             :key="card.title"
-            class="group relative overflow-hidden rounded-4xl border border-white/70 bg-white/70 p-6 shadow-glass backdrop-blur-xl transition duration-200 hover:-translate-y-1 hover:shadow-xl"
+            class="bubble-card group relative overflow-hidden border border-white/70 bg-white/70 p-6 shadow-glass backdrop-blur-xl transition duration-200 hover:-translate-y-1 hover:shadow-xl"
           >
             <div class="absolute -top-24 right-0 h-48 w-48 rounded-full opacity-10 blur-3xl" :class="card.accent"></div>
             <div class="flex items-center gap-3">
@@ -81,7 +81,23 @@
             </div>
             <h3 class="mt-3 text-xl font-semibold text-slate-900">{{ card.title }}</h3>
             <p class="mt-2 text-sm text-slate-600">{{ card.desc }}</p>
-            <div class="mt-4 flex items-center gap-2 text-sm font-semibold text-[#021d94]">
+            <NuxtLink
+              v-if="card.to"
+              :to="card.to"
+              class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#021d94] transition hover:translate-x-0.5"
+            >
+              <span>{{ card.cta }}</span>
+              <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M5 10h7M10 5l5 5-5 5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </NuxtLink>
+            <div v-else class="mt-4 flex items-center gap-2 text-sm font-semibold text-[#021d94]">
               <span>{{ card.cta }}</span>
               <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 20 20" fill="none">
                 <path
@@ -98,7 +114,7 @@
       </div>
     </div>
 
-    <div class="rounded-4xl border border-white/70 bg-white/70 p-10 shadow-glass backdrop-blur-xl">
+    <div class="bubble-card border border-white/70 bg-white/70 p-10 shadow-glass backdrop-blur-xl">
       <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/80">Spotlight modes</p>
@@ -124,7 +140,7 @@
         </div>
       </div>
       <div class="mt-8 grid gap-8 md:grid-cols-[1.2fr,0.8fr]">
-        <div class="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-inner">
+        <div class="bubble-card-soft border border-white/70 bg-white/70 p-6 shadow-inner">
           <p class="text-sm font-semibold uppercase tracking-wide text-[#021d94]">{{ activeModeData?.headline }}</p>
           <h3 class="mt-3 text-2xl font-semibold text-slate-900">{{ activeModeData?.summary }}</h3>
           <p class="mt-2 text-sm text-slate-600">{{ activeModeData?.description }}</p>
@@ -132,7 +148,7 @@
             <li
               v-for="highlight in activeModeData?.highlights ?? []"
               :key="highlight"
-              class="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-slate-600"
+              class="bubble-card-soft flex items-start gap-3 border border-white/70 bg-white/80 px-4 py-3 text-sm text-slate-600"
             >
               <span class="mt-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-r from-[#021d94] to-[#ffaa00]"></span>
               <span>{{ highlight }}</span>
@@ -140,7 +156,7 @@
           </ul>
         </div>
         <div class="grid gap-4">
-          <div class="rounded-3xl border border-white/70 bg-white/80 p-6 shadow-inner">
+          <div class="bubble-card-soft border border-white/70 bg-white/80 p-6 shadow-inner">
             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#021d94]/70">Upcoming club events</p>
             <ul class="mt-4 space-y-4 text-sm text-slate-600">
               <li v-for="event in upcomingEvents" :key="event.title" class="flex items-center justify-between">
@@ -152,7 +168,7 @@
               </li>
             </ul>
           </div>
-          <div class="rounded-3xl border border-white/60 bg-gradient-to-br from-white/70 via-white/40 to-white/20 p-6 shadow-inner">
+          <div class="bubble-card-soft border border-white/60 bg-gradient-to-br from-white/70 via-white/40 to-white/20 p-6 shadow-inner">
             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#021d94]/70">Trending opponents</p>
             <div class="mt-4 grid gap-3 text-sm text-slate-600">
               <div v-for="rival in trendingRivals" :key="rival.handle" class="flex items-center justify-between">
@@ -249,31 +265,34 @@ const heroStats: readonly HeroStat[] = [
 
 const highlightCards: readonly HighlightCard[] = [
   {
-    title: 'Adaptive Elo Boards',
+    title: 'Leaderboards',
     desc: 'Watch rankings refract in real-time as every campus duel resolves.',
-    cta: 'See the momentum',
+    cta: 'See the leaderboards',
     icon: 'ELO',
     tag: 'Live data',
     accent: 'bg-[#021d94]/35',
-    tint: 'bg-[#021d94]/90'
+    tint: 'bg-[#021d94]/90',
+    to: '/leaderboard'
   },
   {
     title: 'AI Coach: Bishop Bias',
-    desc: 'Break down openings, scan tactics, and receive playful nudges mid-match.',
+    desc: 'Break down openings, scan tactics, and get beginner-friendly tutorials mid-match.',
     cta: 'Summon the coach',
     icon: 'AI',
     tag: 'Smart assist',
     accent: 'bg-[#ffaa00]/45',
-    tint: 'bg-[#ffaa00]/80'
+    tint: 'bg-[#ffaa00]/80',
+    to: '/training'
   },
   {
-    title: 'Puzzle Rush Aurora',
-    desc: 'Glassy streaks guide you through escalating combinations and trick shots.',
-    cta: 'Enter the streak',
-    icon: 'PZL',
+    title: 'QuizMania',
+    desc: 'Glassy streaks guide you through escalating chess trivia and trick-shot questions.',
+    cta: 'Enter QuizMania',
+    icon: 'QZ',
     tag: 'Arcade',
     accent: 'bg-[#021d94]/30',
-    tint: 'bg-[#021d94]/70'
+    tint: 'bg-[#021d94]/70',
+    to: '/quizmania'
   },
 ]
 
@@ -352,6 +371,12 @@ const activeMode = ref(spotlightModes[0]?.key ?? '')
 const activeModeData = computed(() => spotlightModes.find((mode) => mode.key === activeMode.value))
 </script>
 
+<style scoped>
+.bubble-card {
+  border-radius: 28px;
+}
 
-
-
+.bubble-card-soft {
+  border-radius: 22px;
+}
+</style>

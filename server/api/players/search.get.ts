@@ -1,9 +1,6 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
-import { ConvexHttpClient } from 'convex/browser'
 import { api } from '~/convex/_generated/api'
-
-// Create a Convex client to interact with the API
-const convex = new ConvexHttpClient(process.env.CONVEX_URL || '')
+import { getConvexClient } from '~/server/utils/convexClient'
 
 type SearchResult = {
   id: string
@@ -43,6 +40,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const convex = getConvexClient()
+    if (!convex) {
+      throw createError({
+        statusCode: 503,
+        statusMessage: 'Convex backend is not configured (missing CONVEX_URL)'
+      })
+    }
+
     // Get all profiles from Convex
     const profiles = await convex.query(api.profiles.getAllProfiles)
 
