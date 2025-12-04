@@ -73,6 +73,18 @@
             {{ item.label }}
           </NuxtLink>
 
+          <!-- Theme Toggle -->
+          <button
+            type="button"
+            class="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-white/70 hover:text-[#021d94]"
+            :aria-label="themeLabel"
+            @click="toggleTheme"
+          >
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+              <path :d="themeIcon" />
+            </svg>
+          </button>
+
           <!-- Search Button -->
           <button
             v-if="isLoggedIn"
@@ -361,6 +373,14 @@ const navItems: readonly NavigationItem[] = [
   { label: 'Modes', to: '/modes' },
 ] as const
 
+const { theme, toggleTheme } = useTheme()
+const themeLabel = computed(() => (theme.value === 'dark' ? 'Light mode' : 'Dark mode'))
+const themeIcon = computed(() =>
+  theme.value === 'dark'
+    ? 'M15.873 3.502c-1.143.026-2.44.76-3.2 1.756-.691.909-1.308 2.351-1.075 3.73.866.03 1.759-.493 2.295-1.17.534-.68.91-1.605.98-2.54.01-.134.02-.26.027-.387.676-.05 1.962-.17 3.005-1.082-.203-.61-.75-1.147-1.282-1.42a3.7 3.7 0 0 0-.75-.243zm-.4 4.55c-1.224 0-2.364.693-3.14 1.66-.728.91-1.231 2.124-1.09 3.31.004.04.01.08.015.12-1.179.137-2.39-.427-3.277-1.25-.898-.835-1.582-2.02-1.43-3.37-1.05.04-2.436.724-3.275 1.94-.859 1.247-.97 2.963-.267 4.254.684 1.26 1.99 2.05 3.355 2.085 1.327.034 2.274-.77 3.397-.725 1.122.043 1.63.76 3.34.737 1.5-.02 2.458-.737 3.096-1.63-.803-.47-1.524-1.29-1.742-2.33-.035-.168-.055-.34-.066-.514a3.6 3.6 0 0 1 1.788-3.22 3.3 3.3 0 0 0-1.506-.347z'
+    : 'M12 3a1 1 0 0 1 1 1c0 3.866-3.134 7-7 7a1 1 0 0 1-1-1c0-3.866 3.134-7 7-7Zm6 9a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z'
+)
+
 const isMenuOpen = ref(false)
 const isSearchModalOpen = ref(false)
 const isProfileDropdownOpen = ref(false)
@@ -525,4 +545,3 @@ watch(
   transform: translateY(-4px) scale(0.95);
 }
 </style>
-

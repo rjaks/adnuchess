@@ -74,7 +74,7 @@
 
       <!-- Answer Options -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <button v-for="(option, index) in session.currentQuestion.options" 
+        <button v-for="(option, index) in displayOptions" 
                 :key="index"
                 @click="selectAnswer(index)"
                 :disabled="answerSubmitted"
@@ -168,6 +168,7 @@ const emits = defineEmits<{
 }>()
 
 const { $convex } = useNuxtApp()
+const optionOrder = ref<Record<string, number[]>>({})
 
 // Component state
 const selectedAnswer = ref<number | null>(null)
@@ -179,6 +180,24 @@ const questionTimeRemaining = ref<number | null>(null)
 const timeRemaining = ref<number | null>(null)
 const questionTimer = ref<NodeJS.Timeout | null>(null)
 const globalTimer = ref<NodeJS.Timeout | null>(null)
+
+const currentQuestionId = computed(() => props.session.currentQuestion?._id)
+
+const displayOptions = computed(() => {
+  const question = props.session.currentQuestion
+  if (!question) return []
+  const order = optionOrder.value[question._id] || question.options.map((_, idx) => idx)
+  return order.map((idx) => question.options[idx])
+})
+
+const ensureOptionOrder = () => {
+  const question = props.session.currentQuestion
+  if (!question) return
+  if (!optionOrder.value[question._id]) {
+    const order = [...question.options.keys()].sort(() => Math.random() - 0.5)
+    optionOrder.value = { ...optionOrder.value, [question._id]: order }
+  }
+}
 
 // Initialize timers
 const initializeTimers = () => {
@@ -234,9 +253,13 @@ const selectAnswer = async (answerIndex: number | null) => {
   cleanupTimers()
   
   try {
+    const question = props.session.currentQuestion
+    const order = question ? optionOrder.value[question._id] || [] : []
+    const originalAnswer = answerIndex !== null ? (order[answerIndex] ?? answerIndex) : null
+
     const result = await $convex.mutation("quiz:submitAnswer", {
       sessionId: props.session._id,
-      answer: answerIndex,
+      answer: originalAnswer,
       timeSpent,
     })
     
@@ -277,6 +300,7 @@ const nextQuestion = async () => {
     })
     
     Object.assign(props.session, updatedSession)
+    ensureOptionOrder()
     initializeTimers()
     
   } catch (error) {
@@ -297,10 +321,11 @@ const getOptionClasses = (index: number) => {
   }
   
   if (showFeedback.value && lastAnswerResult.value) {
-    if (index === lastAnswerResult.value.correctAnswer) {
+    const correctDisplayIndex = getCorrectDisplayIndex()
+    if (index === correctDisplayIndex) {
       return 'border-green-300 bg-green-50'
     }
-    if (index === selectedAnswer.value && index !== lastAnswerResult.value.correctAnswer) {
+    if (index === selectedAnswer.value && index !== correctDisplayIndex) {
       return 'border-red-300 bg-red-50'
     }
   }
@@ -315,15 +340,25 @@ const getOptionNumberClasses = (index: number) => {
   }
   
   if (showFeedback.value && lastAnswerResult.value) {
-    if (index === lastAnswerResult.value.correctAnswer) {
+    const correctDisplayIndex = getCorrectDisplayIndex()
+    if (index === correctDisplayIndex) {
       return 'bg-green-100 text-green-700'
     }
-    if (index === selectedAnswer.value && index !== lastAnswerResult.value.correctAnswer) {
+    if (index === selectedAnswer.value && index !== correctDisplayIndex) {
       return 'bg-red-100 text-red-700'
     }
   }
   
   return 'bg-slate-100 text-slate-600'
+}
+
+const getCorrectDisplayIndex = () => {
+  const question = props.session.currentQuestion
+  const correct = lastAnswerResult.value?.correctAnswer
+  if (!question || correct === undefined || correct === null) return null
+  const order = optionOrder.value[question._id] || []
+  const idx = order.indexOf(correct)
+  return idx >= 0 ? idx : null
 }
 
 // Format time display
@@ -335,15 +370,19 @@ const formatTime = (seconds: number) => {
 
 // Watch for session changes to reinitialize
 watch(() => props.session.currentQuestion, () => {
-  if (props.session.currentQuestion && !answerSubmitted.value) {
-    questionStartTime.value = Date.now()
-    initializeTimers()
+  if (props.session.currentQuestion) {
+    ensureOptionOrder()
+    if (!answerSubmitted.value) {
+      questionStartTime.value = Date.now()
+      initializeTimers()
+    }
   }
 }, { immediate: true })
 
 // Initialize on mount
 onMounted(() => {
   questionStartTime.value = Date.now()
+  ensureOptionOrder()
   initializeTimers()
 })
 

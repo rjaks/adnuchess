@@ -16,26 +16,68 @@
         Battle classmates, unlock campus-exclusive badges, and log every brilliant checkmate. Sign in with your official
         <span class="font-semibold">@gbox.adnu.edu.ph</span> email to create your glassy arena profile.
       </p>
-      <ul class="space-y-3 text-sm text-slate-600">
-        <li class="flex items-start gap-3">
-          <span class="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#021d94]/15 text-xs font-semibold text-[#021d94]">1</span>
-          Verify your university Google account.
-        </li>
-        <li class="flex items-start gap-3">
-          <span class="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#021d94]/15 text-xs font-semibold text-[#021d94]">2</span>
-          Claim your AdNU Chess profile with tracked stats, badges, and achievements.
-        </li>
-        <li class="flex items-start gap-3">
-          <span class="mt-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#021d94]/15 text-xs font-semibold text-[#021d94]">3</span>
-          Queue into luminous matches against Stockfish or fellow Ateneans.
-        </li>
-      </ul>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div class="rounded-panel-soft border border-white/70 bg-white/80 p-4 shadow-glass">
+          <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#021d94]/70">Quick start</p>
+          <ul class="mt-3 space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#021d94]/15 text-[10px] font-semibold text-[#021d94]">1</span>
+              Verify your @gbox.adnu.edu.ph account.
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#021d94]/15 text-[10px] font-semibold text-[#021d94]">2</span>
+              Choose “Stay signed in” if this is your personal device.
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#021d94]/15 text-[10px] font-semibold text-[#021d94]">3</span>
+              Jump into matchmaking or training mode.
+            </li>
+          </ul>
+        </div>
+        <div class="rounded-panel-soft border border-white/70 bg-white/80 p-4 shadow-glass">
+          <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#021d94]/70">Why sign in</p>
+          <ul class="mt-3 space-y-2 text-sm text-slate-600">
+            <li class="flex items-start gap-2">
+              <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#021d94]/15 text-[10px] font-semibold text-[#021d94]">★</span>
+              Track Elo, streaks, and badges unique to campus.
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#021d94]/15 text-[10px] font-semibold text-[#021d94]">⚡</span>
+              Save puzzles and training progress.
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#021d94]/15 text-[10px] font-semibold text-[#021d94]">🤝</span>
+              Join verified matches with fellow Ateneans.
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
-    <AuthSignInPanel redirect-to="/" title="Sign in to play" description="Your account powers stats, badges, and matchmaking." />
+    <AuthSignInPanel
+      redirect-to="/"
+      title="Sign in to play"
+      description="Your account powers stats, badges, and matchmaking."
+      :stay-signed-in="staySignedIn"
+      @update:stay-signed-in="(val) => (staySignedIn = val)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import AuthSignInPanel from '~/components/AuthSignInPanel.vue'
-</script>
+import { ref, watch } from 'vue'
 
+const staySignedIn = ref(true)
+
+watch(
+  staySignedIn,
+  (val) => {
+    if (process.client && val) {
+      localStorage.setItem('adnu_stay_signed_in', '1')
+    } else if (process.client) {
+      localStorage.removeItem('adnu_stay_signed_in')
+    }
+  },
+  { immediate: true },
+)
+</script>

@@ -118,6 +118,18 @@
         {{ showDebugInfo ? 'Hide' : 'Show' }} Debug Info
       </button>
     </div>
+
+    <div class="flex items-center justify-center gap-2 text-sm text-slate-600">
+      <label class="inline-flex items-center gap-2">
+        <input
+          type="checkbox"
+          class="h-4 w-4 rounded border-slate-300 text-[#021d94] focus:ring-[#021d94]"
+          :checked="staySignedIn"
+          @change="toggleStaySignedIn(($event.target as HTMLInputElement).checked)"
+        />
+        <span>Stay signed in on this device</span>
+      </label>
+    </div>
   </section>
 </template>
 
@@ -170,13 +182,19 @@ const props = withDefaults(
     title?: string
     description?: string
     redirectTo?: string
+    staySignedIn?: boolean
   }>(),
   {
     title: 'Sign in with your gbox account',
     description: 'Use your university-issued Google credentials to access the glassy arena.',
     redirectTo: '/',
+    staySignedIn: true,
   },
 )
+
+const emit = defineEmits<{
+  (e: 'update:stay-signed-in', value: boolean): void
+}>()
 
 const config = useRuntimeConfig()
 const clientId = config.public.googleClientId
@@ -386,6 +404,12 @@ const handleGoogleCredential = async ({ credential }: GoogleIdentityCredential) 
     
     showRetryButton.value = false
     registrationError.value = null
+    // honor stay signed in
+    if (props.staySignedIn && process.client) {
+      localStorage.setItem('adnu_stay_signed_in', '1')
+    } else if (process.client) {
+      localStorage.removeItem('adnu_stay_signed_in')
+    }
     
   } catch (error: any) {
     console.error('🚨 Authentication/Registration failed:', error)
@@ -642,6 +666,10 @@ const initGoogle = async () => {
       showRetryButton.value = true
     }
   }
+}
+
+const toggleStaySignedIn = (value: boolean) => {
+  emit('update:stay-signed-in', value)
 }
 
 onMounted(async () => {

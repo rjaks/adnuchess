@@ -55,7 +55,10 @@
             :key="stat.label"
             class="bubble-card-soft border border-white/70 bg-white/80 px-5 py-4 text-slate-700 shadow-inner"
           >
-            <p class="text-2xl font-semibold text-[#021d94]">{{ stat.value }}</p>
+            <p class="text-2xl font-semibold text-[#021d94]">
+              <span v-if="stat.loading">—</span>
+              <span v-else>{{ stat.value }}</span>
+            </p>
             <p class="text-xs uppercase tracking-wide text-slate-500">{{ stat.label }}</p>
           </div>
         </div>
@@ -115,72 +118,42 @@
     </div>
 
     <div class="bubble-card border border-white/70 bg-white/70 p-10 shadow-glass backdrop-blur-xl">
-      <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/80">Spotlight modes</p>
-          <h2 class="mt-2 text-3xl font-semibold text-slate-900">Choose your arena vibe</h2>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          <button
-            v-for="mode in spotlightModes"
-            :key="mode.key"
-            type="button"
-            class="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition"
-            :class="
-              activeMode === mode.key
-                ? 'border-transparent bg-gradient-to-r from-[#021d94] to-[#ffaa00] text-white shadow-lg shadow-[#021d94]/20'
-                : 'border-white/70 bg-white/40 text-[#021d94] hover:border-[#021d94]/40 hover:bg-white'
-            "
-            @mouseenter="activeMode = mode.key"
-            @focus="activeMode = mode.key"
-          >
-            <span class="text-xs font-bold uppercase tracking-wide">{{ mode.tag }}</span>
-            <span>{{ mode.title }}</span>
-          </button>
-        </div>
+      <div class="flex flex-col gap-2">
+        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/80">Spotlight modes</p>
+        <h2 class="text-3xl font-semibold text-slate-900">Pick the mode that fits you</h2>
+        <p class="text-sm text-slate-600">Each mode links to its own page—no guessing, no placeholders.</p>
       </div>
-      <div class="mt-8 grid gap-8 md:grid-cols-[1.2fr,0.8fr]">
-        <div class="bubble-card-soft border border-white/70 bg-white/70 p-6 shadow-inner">
-          <p class="text-sm font-semibold uppercase tracking-wide text-[#021d94]">{{ activeModeData?.headline }}</p>
-          <h3 class="mt-3 text-2xl font-semibold text-slate-900">{{ activeModeData?.summary }}</h3>
-          <p class="mt-2 text-sm text-slate-600">{{ activeModeData?.description }}</p>
-          <ul class="mt-5 grid gap-4 sm:grid-cols-2">
-            <li
-              v-for="highlight in activeModeData?.highlights ?? []"
-              :key="highlight"
-              class="bubble-card-soft flex items-start gap-3 border border-white/70 bg-white/80 px-4 py-3 text-sm text-slate-600"
-            >
-              <span class="mt-0.5 h-2.5 w-2.5 rounded-full bg-gradient-to-r from-[#021d94] to-[#ffaa00]"></span>
+      <div class="mt-8 grid gap-6 lg:grid-cols-3">
+        <article
+          v-for="mode in spotlightModes"
+          :key="mode.key"
+          class="bubble-card-soft border border-white/70 bg-white/80 p-6 shadow-inner"
+        >
+          <div class="flex items-center gap-2">
+            <span class="rounded-full bg-[#021d94]/10 px-3 py-1 text-xs font-semibold text-[#021d94] uppercase tracking-wide">
+              {{ mode.tag }}
+            </span>
+            <p class="text-xs text-slate-500">{{ mode.headline }}</p>
+          </div>
+          <h3 class="mt-3 text-xl font-semibold text-slate-900">{{ mode.title }}</h3>
+          <p class="mt-2 text-sm text-slate-600">{{ mode.summary }}</p>
+          <ul class="mt-3 space-y-2 text-sm text-slate-600">
+            <li v-for="highlight in mode.highlights.slice(0, 3)" :key="highlight" class="flex items-start gap-2">
+              <span class="mt-1 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-[#021d94] to-[#ffaa00]"></span>
               <span>{{ highlight }}</span>
             </li>
           </ul>
-        </div>
-        <div class="grid gap-4">
-          <div class="bubble-card-soft border border-white/70 bg-white/80 p-6 shadow-inner">
-            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#021d94]/70">Upcoming club events</p>
-            <ul class="mt-4 space-y-4 text-sm text-slate-600">
-              <li v-for="event in upcomingEvents" :key="event.title" class="flex items-center justify-between">
-                <div>
-                  <p class="font-semibold text-slate-800">{{ event.title }}</p>
-                  <p class="text-xs uppercase tracking-wide text-slate-500">{{ event.detail }}</p>
-                </div>
-                <span class="rounded-full bg-[#021d94]/10 px-3 py-1 text-xs font-semibold text-[#021d94]">{{ event.when }}</span>
-              </li>
-            </ul>
-          </div>
-          <div class="bubble-card-soft border border-white/60 bg-gradient-to-br from-white/70 via-white/40 to-white/20 p-6 shadow-inner">
-            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-[#021d94]/70">Trending opponents</p>
-            <div class="mt-4 grid gap-3 text-sm text-slate-600">
-              <div v-for="rival in trendingRivals" :key="rival.handle" class="flex items-center justify-between">
-                <div>
-                  <p class="font-semibold text-slate-800">{{ rival.name }}</p>
-                  <p class="text-xs uppercase tracking-wide text-slate-500">{{ rival.department }}</p>
-                </div>
-                <span class="rounded-full bg-[#ffaa00]/10 px-3 py-1 text-xs font-semibold text-[#021d94]">{{ rival.handle }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+          <NuxtLink
+            v-if="mode.to"
+            :to="mode.to"
+            class="mt-4 inline-flex items-center gap-2 rounded-full border border-[#021d94]/20 bg-white px-4 py-2 text-sm font-semibold text-[#021d94] shadow-sm transition hover:border-[#021d94]/50 hover:bg-white"
+          >
+            Explore {{ mode.title }}
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none">
+              <path d="M5 10h7M10 5l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </NuxtLink>
+        </article>
       </div>
     </div>
 
@@ -211,12 +184,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import MenuLink from '~/components/MenuLink.vue'
 
 type HeroStat = {
   label: string
-  value: string
+  value: string | number
+  loading?: boolean
 }
 
 type HighlightCard = {
@@ -237,6 +211,7 @@ type SpotlightMode = {
   summary: string
   description: string
   highlights: string[]
+  to?: string
 }
 
 type EventItem = {
@@ -257,11 +232,17 @@ type FeatureLink = {
   desc: string
 }
 
-const heroStats: readonly HeroStat[] = [
-  { label: 'Players Online', value: '128' },
-  { label: 'Daily Matches', value: '342' },
-  { label: 'Tournament Slots', value: '12' },
-]
+const { data: dashboardStats, pending: statsPending } = await useFetch('/api/dashboard/stats')
+
+const heroStats = computed<HeroStat[]>(() => {
+  const stats = dashboardStats.value
+  const loading = statsPending.value || !stats
+  return [
+    { label: 'Players Online', value: stats?.playersOnline ?? 0, loading },
+    { label: 'Daily Matches', value: stats?.dailyMatches ?? 0, loading },
+    { label: 'Tournament Slots', value: stats?.tournamentSlots ?? 0, loading },
+  ]
+})
 
 const highlightCards: readonly HighlightCard[] = [
   {
@@ -310,7 +291,8 @@ const spotlightModes: readonly SpotlightMode[] = [
       'Move counter that rewards perfect solutions',
       'Hints unlockable with earned puzzle points',
       'Weekly puzzle packs from club tacticians'
-    ]
+    ],
+    to: '/puzzlenida'
   },
   {
     key: 'battle-royale',
@@ -340,22 +322,10 @@ const spotlightModes: readonly SpotlightMode[] = [
       'Question banks curated by AdNU coaches',
       'Power-ups to freeze rivals or reveal hints',
       'Seasonal leaderboards for trivia champs'
-    ]
+    ],
+    to: '/quizmania'
   }
 ]
-
-const upcomingEvents: readonly EventItem[] = [
-  { title: 'Intrams Finals', detail: 'Main Arena - Board 1 spotlight', when: 'Fri 7 PM' },
-  { title: 'Coach Iris Workshop', detail: 'CS Lab - Tactical visualisation', when: 'Sun 2 PM' },
-  { title: 'Freshmen Blitz Draft', detail: 'Student Lounge - 5+0 Swiss', when: 'Wed 5 PM' },
-]
-
-const trendingRivals: readonly Rival[] = [
-  { name: 'Mara Sison', handle: '@marasison', department: 'AB PolSci' },
-  { name: 'Gio Franco', handle: '@giofranco', department: 'BS IT' },
-  { name: 'Luis Tan', handle: '@luistan', department: 'BSBA Finance' },
-]
-
 const featureLinks: readonly FeatureLink[] = [
   { to: '/matchmaking', title: 'Player vs Player', desc: 'Real-time matches against fellow Ateneans' },
   { to: '/play', title: 'Play vs AI', desc: 'Challenge Stockfish engine' },
@@ -365,10 +335,6 @@ const featureLinks: readonly FeatureLink[] = [
   { to: '/faq', title: 'FAQs', desc: 'Rules & help center' },
   { to: '/settings', title: 'Settings', desc: 'Chat filter & more' }
 ]
-
-const activeMode = ref(spotlightModes[0]?.key ?? '')
-
-const activeModeData = computed(() => spotlightModes.find((mode) => mode.key === activeMode.value))
 </script>
 
 <style scoped>
