@@ -4,6 +4,7 @@
 export const ADMIN_EMAILS = [
   'lojenar@gbox.adnu.edu.ph',
   'laojenar@gbox.adnu.edu.ph',
+  'mtresreyes@gbox.adnu.edu.ph', // Added for quiz admin access
   // Add other authorized ADNU admin emails here as needed:
   // 'admin@gbox.adnu.edu.ph',
   // 'it.admin@gbox.adnu.edu.ph',

@@ -172,6 +172,7 @@ export default defineSchema({
     answers: v.array(v.object({
       questionId: v.id("quizQuestions"),
       userAnswer: v.optional(v.number()), // User's selected option index
+      correctAnswer: v.number(), // Index of the correct answer (stored for display)
       isCorrect: v.boolean(),
       timeSpent: v.number(), // Milliseconds
       pointsEarned: v.number(),

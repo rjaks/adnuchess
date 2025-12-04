@@ -29,6 +29,17 @@
           </button>
           <p class="text-sm text-slate-600 mt-2">View current quiz system statistics</p>
         </div>
+        
+        <div class="bg-white/80 rounded-2xl p-6 border border-white/60">
+          <h3 class="text-lg font-bold text-slate-800 mb-4">Debug</h3>
+          <button 
+            @click="checkQuestions" 
+            :disabled="checking"
+            class="w-full px-4 py-2 bg-yellow-600 text-white rounded-xl font-semibold hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            {{ checking ? 'Checking...' : 'Check Questions' }}
+          </button>
+          <p class="text-sm text-slate-600 mt-2">Verify question structure in database</p>
+        </div>
       </div>
 
       <!-- Statistics Display -->
@@ -84,6 +95,12 @@
           {{ message.text }}
         </div>
       </div>
+      
+      <!-- Debug Info -->
+      <div v-if="debugInfo" class="mb-6 bg-white/80 rounded-2xl p-6 border border-white/60">
+        <h3 class="text-lg font-bold text-slate-800 mb-4">Question Structure Debug</h3>
+        <pre class="bg-slate-100 p-4 rounded-xl overflow-auto text-xs">{{ JSON.stringify(debugInfo, null, 2) }}</pre>
+      </div>
 
       <!-- Back to QuizMania -->
       <div class="text-center">
@@ -103,8 +120,10 @@ const { $convex } = useNuxtApp()
 
 const seeding = ref(false)
 const loadingStats = ref(false)
+const checking = ref(false)
 const stats = ref(null)
 const message = ref(null)
+const debugInfo = ref(null)
 
 const seedQuestions = async () => {
   seeding.value = true
@@ -128,6 +147,27 @@ const seedQuestions = async () => {
     }
   } finally {
     seeding.value = false
+  }
+}
+
+const checkQuestions = async () => {
+  checking.value = true
+  debugInfo.value = null
+  
+  try {
+    // Check first 3 questions
+    const results = []
+    for (let i = 0; i < 3; i++) {
+      const result = await $convex.query("quiz_admin:debugQuestion", { index: i })
+      results.push(result)
+    }
+    debugInfo.value = results
+    console.log('Question structure check:', results)
+  } catch (error) {
+    console.error('Failed to check questions:', error)
+    debugInfo.value = { error: error.message }
+  } finally {
+    checking.value = false
   }
 }
 

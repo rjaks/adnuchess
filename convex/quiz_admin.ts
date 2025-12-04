@@ -1,5 +1,20 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+
+// Debug query to check a single question's structure
+export const debugQuestion = query({
+  args: { index: v.optional(v.number()) },
+  handler: async (ctx, { index = 0 }) => {
+    const questions = await ctx.db.query("quizQuestions").take(index + 1);
+    const question = questions[index];
+    return {
+      raw: question,
+      hasCorrectAnswer: question?.correctAnswer !== undefined,
+      correctAnswerValue: question?.correctAnswer,
+      allFields: Object.keys(question || {}),
+    };
+  },
+});
 
 // Seed function to add initial quiz questions
 export const seedQuizQuestions = mutation({
@@ -233,6 +248,12 @@ export const seedQuizQuestions = mutation({
       }
     ];
 
+    // Delete all existing questions first
+    const existingQuestions = await ctx.db.query("quizQuestions").collect();
+    for (const q of existingQuestions) {
+      await ctx.db.delete(q._id);
+    }
+
     // Insert all questions
     const insertedIds = [];
     for (const question of questions) {
@@ -241,7 +262,7 @@ export const seedQuizQuestions = mutation({
     }
 
     return {
-      message: `Successfully added ${questions.length} quiz questions!`,
+      message: `Successfully deleted ${existingQuestions.length} old questions and added ${questions.length} new quiz questions!`,
       questionIds: insertedIds
     };
   },
@@ -273,5 +294,30 @@ export const getQuizStats = mutation({
       categoryCounts,
       difficultyCounts,
     };
+  },
+});
+
+// Debug query to check if questions have correctAnswer field
+export const checkQuestionStructure = query({
+  args: {},
+  handler: async (ctx) => {
+    const questions = await ctx.db.query("quizQuestions").take(3);
+    return questions.map(q => ({
+      id: q._id,
+      question: q.question?.substring(0, 50),
+      correctAnswer: q.correctAnswer,
+      options: q.options,
+      allKeys: Object.keys(q),
+      hasCorrectAnswer: 'correctAnswer' in q
+    }));
+  },
+});
+
+// Get a single question by ID to debug
+export const getQuestionById = query({
+  args: { questionId: v.id("quizQuestions") },
+  handler: async (ctx, { questionId }) => {
+    const q = await ctx.db.get(questionId);
+    return q;
   },
 });

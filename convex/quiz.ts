@@ -81,11 +81,17 @@ export const getQuizSession = query({
       ? await ctx.db.get(session.questions[session.currentQuestionIndex])
       : null;
     
+    // For Quick Fire (challenge mode), override timeLimit to 10 seconds
+    const finalTimeLimit = session.gameMode === "challenge" ? 10 : (currentQuestion?.timeLimit ?? 15);
+    
+    console.log(`[QuizSession] Mode: ${session.gameMode}, Original timeLimit: ${currentQuestion?.timeLimit}, Final timeLimit: ${finalTimeLimit}`);
+    
     return {
       ...session,
       currentQuestion: currentQuestion ? {
         ...currentQuestion,
         correctAnswer: undefined, // Don't send correct answer to client
+        timeLimit: finalTimeLimit,
       } : null,
     };
   },
@@ -110,14 +116,18 @@ export const submitAnswer = mutation({
       throw new Error("Question not found");
     }
     
+    console.log("[submitAnswer] Question data:", JSON.stringify(question));
+    console.log("[submitAnswer] correctAnswer field:", question.correctAnswer);
+    
     // Check if answer is correct
     const isCorrect = answer !== undefined && answer === question.correctAnswer;
     const pointsEarned = isCorrect ? question.points : 0;
     
-    // Add answer to session
+    // Add answer to session - INCLUDE correctAnswer for later display
     const newAnswer = {
       questionId: currentQuestionId,
       userAnswer: answer,
+      correctAnswer: question.correctAnswer, // Store correct answer here!
       isCorrect,
       timeSpent,
       pointsEarned,
@@ -156,6 +166,28 @@ export const submitAnswer = mutation({
   },
 });
 
+// End timed quiz when time runs out
+export const endTimedQuiz = mutation({
+  args: { sessionId: v.id("quizSessions") },
+  handler: async (ctx, { sessionId }) => {
+    const session = await ctx.db.get(sessionId);
+    if (!session) {
+      throw new Error("Session not found");
+    }
+    
+    // Mark session as completed
+    await ctx.db.patch(sessionId, {
+      status: "completed",
+      completedAt: Date.now(),
+    });
+    
+    // Update leaderboard
+    await updateLeaderboard(ctx, session.userId, session, session.totalScore, session.correctAnswers);
+    
+    return { success: true };
+  },
+});
+
 // Get quiz results
 export const getQuizResults = query({
   args: { sessionId: v.id("quizSessions") },
@@ -164,17 +196,32 @@ export const getQuizResults = query({
     if (!session) return null;
     
     // Get detailed results with questions and answers
-    const detailedAnswers = await Promise.all(
-      session.answers.map(async (answer) => {
-        const question = await ctx.db.get(answer.questionId);
-        return {
-          ...answer,
-          question: question?.question,
-          options: question?.options,
-          explanation: question?.explanation,
-        };
-      })
-    );
+    const detailedAnswers = [];
+    
+    for (const answer of session.answers) {
+      const question = await ctx.db.get(answer.questionId);
+      
+      // Calculate score - handle both old sessions (without pointsEarned) and new ones
+      const score = answer.pointsEarned !== undefined 
+        ? answer.pointsEarned 
+        : (answer.isCorrect ? (question?.points || 10) : 0);
+      
+      // Explicitly construct the object to ensure correctAnswer is included
+      const detailedAnswer = {
+        questionId: answer.questionId,
+        userAnswer: answer.userAnswer,
+        isCorrect: answer.isCorrect,
+        timeSpent: answer.timeSpent,
+        pointsEarned: answer.pointsEarned,
+        question: question?.question || 'Question not found',
+        options: question?.options || [],
+        explanation: question?.explanation || '',
+        correctAnswer: question ? question.correctAnswer : null,
+        score: score,
+      };
+      
+      detailedAnswers.push(detailedAnswer);
+    }
     
     const accuracy = session.totalQuestions > 0 
       ? (session.correctAnswers / session.totalQuestions) * 100 

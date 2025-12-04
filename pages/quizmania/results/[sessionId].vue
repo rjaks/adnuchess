@@ -41,63 +41,30 @@
           </div>
         </div>
 
-        <!-- Performance Chart -->
-        <div class="bg-white/80 rounded-3xl p-8 border border-white/60">
-          <h2 class="text-xl font-bold text-slate-800 mb-6">Performance Breakdown</h2>
-          <div class="space-y-4">
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-slate-600">Correct Answers</span>
-              <span class="font-semibold text-green-600">{{ results.session.correctAnswers }} questions</span>
-            </div>
-            <div class="w-full bg-slate-200 rounded-full h-3">
-              <div class="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-1000"
-                   :style="{ width: `${results.stats.accuracy}%` }">
-              </div>
-            </div>
-            
-            <div class="flex items-center justify-between text-sm mt-4">
-              <span class="text-slate-600">Speed Performance</span>
-              <span class="font-semibold text-blue-600">{{ getSpeedRating(results.stats.averageTimePerQuestion) }}</span>
-            </div>
-            <div class="w-full bg-slate-200 rounded-full h-3">
-              <div class="bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-1000"
-                   :style="{ width: `${getSpeedPercentage(results.stats.averageTimePerQuestion)}%` }">
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Question Review -->
         <div class="bg-white/80 rounded-3xl p-8 border border-white/60">
           <h2 class="text-xl font-bold text-slate-800 mb-6">Question Review</h2>
           <div class="space-y-6">
             <div v-for="(answer, index) in results.detailedAnswers" :key="index"
-                 class="border rounded-2xl p-6"
-                 :class="answer.isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'">
+                 class="p-6 rounded-2xl border-2"
+                 :class="answer.isCorrect ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'">
               
-              <!-- Question Number and Status -->
+              <!-- Question Number & Status -->
               <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                       :class="answer.isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
+                       :class="answer.isCorrect ? 'bg-green-500' : 'bg-red-500'">
                     {{ index + 1 }}
                   </div>
-                  <div>
-                    <div class="font-semibold" :class="answer.isCorrect ? 'text-green-800' : 'text-red-800'">
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold" :class="answer.isCorrect ? 'text-green-700' : 'text-red-700'">
                       {{ answer.isCorrect ? 'Correct' : 'Incorrect' }}
-                    </div>
-                    <div class="text-sm text-slate-600">{{ Math.round(answer.timeSpent / 1000) }}s • +{{ answer.pointsEarned }} points</div>
+                    </span>
+                    <span class="text-sm text-slate-600">{{ Math.round(answer.timeSpent / 1000) }}s</span>
                   </div>
                 </div>
-                <div v-if="answer.isCorrect" class="text-green-600">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <div v-else class="text-red-600">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
+                <div class="text-sm font-semibold" :class="answer.isCorrect ? 'text-green-600' : 'text-red-600'">
+                  +{{ answer.score }} points
                 </div>
               </div>
 
@@ -134,10 +101,6 @@
                   class="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all">
             Play Again
           </button>
-          <button @click="viewLeaderboard" 
-                  class="px-8 py-3 border border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-colors">
-            View Leaderboard
-          </button>
           <button @click="backToMenu" 
                   class="px-8 py-3 border border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-colors">
             Back to Menu
@@ -149,7 +112,7 @@
       <div v-else class="text-center py-16">
         <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </div>
         <h2 class="text-xl font-bold text-slate-800 mb-2">Results Not Found</h2>
@@ -166,26 +129,43 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
+console.log('[Results] Component script executing')
+
 const route = useRoute()
 const { $convex } = useNuxtApp()
+
+// Use _sessionId for Nuxt 2 style params, or sessionId for Nuxt 3 bracket style
+const sessionId = computed(() => route.params.sessionId || route.params._sessionId)
+
+console.log('[Results] Route params:', route.params)
+console.log('[Results] Session ID:', sessionId.value)
 
 const loading = ref(true)
 const results = ref(null)
 
 // Load quiz results
 const loadResults = async () => {
-  const sessionId = route.params.sessionId as string
-  if (!sessionId) {
+  const id = sessionId.value as string
+  console.log('[Results] Loading results for sessionId:', id)
+  
+  if (!id) {
+    console.log('[Results] No sessionId found')
     loading.value = false
     return
   }
 
   try {
+    console.log('[Results] Calling quiz:getQuizResults with sessionId:', id)
+    console.log('[Results] Type of sessionId:', typeof id)
     results.value = await $convex.query("quiz:getQuizResults", {
-      sessionId: sessionId as any
+      sessionId: id as any
     })
+    console.log('[Results] Results loaded successfully:', !!results.value)
+    if (results.value) {
+      console.log('[Results] Score:', results.value.session.totalScore)
+    }
   } catch (error) {
-    console.error('Failed to load quiz results:', error)
+    console.error('[Results] Failed to load quiz results:', error)
   } finally {
     loading.value = false
   }
@@ -210,30 +190,12 @@ const getPerformanceMessage = (accuracy: number) => {
   return "Keep practicing! Every master was once a beginner! 💪"
 }
 
-// Get speed rating
-const getSpeedRating = (avgTime: number) => {
-  if (avgTime <= 5) return "Lightning Fast ⚡"
-  if (avgTime <= 10) return "Very Quick 🚀"
-  if (avgTime <= 15) return "Good Pace 👍"
-  if (avgTime <= 20) return "Steady 🐢"
-  return "Take Your Time 😊"
-}
-
-// Get speed percentage for progress bar
-const getSpeedPercentage = (avgTime: number) => {
-  // Invert the time (faster = higher percentage)
-  const maxTime = 30 // 30 seconds is considered slow
-  return Math.max(0, Math.min(100, ((maxTime - avgTime) / maxTime) * 100))
-}
-
 // Get review option classes
 const getReviewOptionClasses = (optionIndex: number, answer: any) => {
   const isUserAnswer = answer.userAnswer === optionIndex
-  const isCorrectAnswer = answer.questionId && results.value?.detailedAnswers
-    ? answer.questionId === results.value.detailedAnswers.find(a => a.questionId === answer.questionId)?.questionId
-    : false
+  const isCorrectAnswer = optionIndex === answer.correctAnswer
 
-  if (isCorrectAnswer || optionIndex === answer.correctAnswer) {
+  if (isCorrectAnswer) {
     return 'border-green-300 bg-green-100 text-green-800'
   }
   if (isUserAnswer && !answer.isCorrect) {
@@ -244,11 +206,22 @@ const getReviewOptionClasses = (optionIndex: number, answer: any) => {
 
 // Navigation functions
 const playAgain = () => {
+  console.log('[Results] Play Again function called')
+  console.log('[Results] Results value:', results.value)
+  
+  // Get the game mode from results to pre-select it
+  const gameMode = results.value?.session?.gameMode || 'practice'
+  console.log('[Results] Game mode extracted:', gameMode)
+  
+  // Store the mode in sessionStorage to trigger modal on next page
+  if (typeof window !== 'undefined') {
+    console.log('[Results] Setting sessionStorage')
+    sessionStorage.setItem('quizmania_autoOpenMode', gameMode)
+    console.log('[Results] SessionStorage set to:', sessionStorage.getItem('quizmania_autoOpenMode'))
+  }
+  
+  console.log('[Results] Navigating to /quizmania')
   navigateTo('/quizmania')
-}
-
-const viewLeaderboard = () => {
-  navigateTo('/quizmania/leaderboard')
 }
 
 const backToMenu = () => {
@@ -256,7 +229,10 @@ const backToMenu = () => {
 }
 
 // Load results on mount
-onMounted(loadResults)
+onMounted(() => {
+  console.log('[Results] onMounted called')
+  loadResults()
+})
 
 // Set page metadata
 definePageMeta({

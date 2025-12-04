@@ -188,7 +188,8 @@
       <QuizSession v-else 
                    :session="currentSession" 
                    @quiz-completed="handleQuizCompleted"
-                   @quit-quiz="handleQuitQuiz" />
+                   @quit-quiz="handleQuitQuiz"
+                   @retry-quiz="handleRetryQuiz" />
     </div>
   </div>
 </template>
@@ -299,19 +300,38 @@ const startQuiz = async () => {
 
 // Handle quiz completion
 const handleQuizCompleted = async (sessionId: string) => {
+  console.log('[QuizMania] Quiz completed, sessionId:', sessionId)
+  
+  console.log('[QuizMania] Navigating to results page:', `/quizmania/results/${sessionId}`)
+  // Navigate to results page FIRST before clearing session
+  try {
+    await navigateTo(`/quizmania/results/${sessionId}`, { 
+      replace: false,
+      external: false 
+    })
+    console.log('[QuizMania] Navigation completed')
+  } catch (error) {
+    console.error('[QuizMania] Navigation error:', error)
+  }
+  
+  // Clear session AFTER navigation
   currentSession.value = null
   
-  // Refresh user stats and leaderboard
-  await loadUserStats()
-  await loadLeaderboard()
-  
-  // Navigate to results page
-  await navigateTo(`/quizmania/results/${sessionId}`)
+  // Refresh user stats and leaderboard in background
+  loadUserStats()
+  loadLeaderboard()
 }
 
 // Handle quit quiz
 const handleQuitQuiz = () => {
   currentSession.value = null
+}
+
+// Handle retry quiz
+const handleRetryQuiz = () => {
+  currentSession.value = null
+  // Automatically show config with the same settings
+  showConfig.value = true
 }
 
 // Load user statistics
