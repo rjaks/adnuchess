@@ -103,8 +103,9 @@ export const submitAnswer = mutation({
     sessionId: v.id("quizSessions"),
     answer: v.optional(v.number()),
     timeSpent: v.number(),
+    optionOrder: v.optional(v.array(v.number())), // Shuffled order of options
   },
-  handler: async (ctx, { sessionId, answer, timeSpent }) => {
+  handler: async (ctx, { sessionId, answer, timeSpent, optionOrder }) => {
     const session = await ctx.db.get(sessionId);
     if (!session || session.status !== "active") {
       throw new Error("Invalid or inactive session");
@@ -123,11 +124,12 @@ export const submitAnswer = mutation({
     const isCorrect = answer !== undefined && answer === question.correctAnswer;
     const pointsEarned = isCorrect ? question.points : 0;
     
-    // Add answer to session - INCLUDE correctAnswer for later display
+    // Add answer to session - INCLUDE correctAnswer and optionOrder for later display
     const newAnswer = {
       questionId: currentQuestionId,
       userAnswer: answer,
       correctAnswer: question.correctAnswer, // Store correct answer here!
+      optionOrder, // Store shuffled order
       isCorrect,
       timeSpent,
       pointsEarned,
@@ -206,17 +208,37 @@ export const getQuizResults = query({
         ? answer.pointsEarned 
         : (answer.isCorrect ? (question?.points || 10) : 0);
       
+      // Shuffle options based on stored order (if available)
+      let displayOptions = question?.options || [];
+      let displayCorrectAnswer = question ? question.correctAnswer : null;
+      let displayUserAnswer = answer.userAnswer;
+      
+      if (answer.optionOrder && answer.optionOrder.length > 0) {
+        // Reorder options to match what was shown to the user
+        displayOptions = answer.optionOrder.map((originalIndex: number) => 
+          question?.options[originalIndex] || ''
+        );
+        
+        // Convert correct answer index to shuffled position
+        displayCorrectAnswer = answer.optionOrder.indexOf(question?.correctAnswer ?? -1);
+        
+        // Convert user answer index to shuffled position
+        if (displayUserAnswer !== undefined && displayUserAnswer !== null) {
+          displayUserAnswer = answer.optionOrder.indexOf(displayUserAnswer);
+        }
+      }
+      
       // Explicitly construct the object to ensure correctAnswer is included
       const detailedAnswer = {
         questionId: answer.questionId,
-        userAnswer: answer.userAnswer,
+        userAnswer: displayUserAnswer,
         isCorrect: answer.isCorrect,
         timeSpent: answer.timeSpent,
         pointsEarned: answer.pointsEarned,
         question: question?.question || 'Question not found',
-        options: question?.options || [],
+        options: displayOptions,
         explanation: question?.explanation || '',
-        correctAnswer: question ? question.correctAnswer : null,
+        correctAnswer: displayCorrectAnswer,
         score: score,
       };
       

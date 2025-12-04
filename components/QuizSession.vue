@@ -363,6 +363,7 @@ const selectAnswer = async (answerIndex: number | null) => {
       sessionId: props.session._id,
       answer: originalAnswer,
       timeSpent,
+      optionOrder: order, // Store the shuffled order
     })
     
     lastAnswerResult.value = result
