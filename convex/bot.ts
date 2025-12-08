@@ -359,39 +359,55 @@ export const makeBotMove = mutation({
   handler: async (ctx, { gameId, move }) => {
     console.log(`[Bot] Applying move ${move} to game ${gameId}`);
     
-    // Find the game
-    const game = await ctx.db
-      .query("games")
-      .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
-      .first();
-    
-    if (!game) {
-      throw new Error(`Game not found: ${gameId}`);
-    }
-    
-    // Validate game status
-    if (game.status !== "active") {
-      throw new Error(`Game is not active: ${game.status}`);
-    }
-    
-    // Initialize chess with current position
-    const chess = new Chess(game.fen);
-    
-    // Parse UCI move
-    const from = move.slice(0, 2);
-    const to = move.slice(2, 4);
-    const promotion = move.length > 4 ? move.slice(4, 5) : undefined;
-    
-    // Make the move
-    const moveResult = chess.move({
-      from,
-      to,
-      promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined,
-    });
-    
-    if (!moveResult) {
-      throw new Error(`Invalid move: ${move}`);
-    }
+    try {
+      // Find the game
+      const game = await ctx.db
+        .query("games")
+        .withIndex("by_gameId", (q) => q.eq("gameId", gameId))
+        .first();
+      
+      if (!game) {
+        console.error(`[Bot] Game not found: ${gameId}`);
+        throw new Error(`Game not found: ${gameId}`);
+      }
+      
+      // Validate game status
+      if (game.status !== "active") {
+        console.error(`[Bot] Game is not active: ${game.status}`);
+        throw new Error(`Game is not active: ${game.status}`);
+      }
+      
+      // Initialize chess with current position
+      let chess: Chess;
+      try {
+        chess = new Chess(game.fen);
+      } catch (fenError) {
+        console.error(`[Bot] Invalid FEN in database: ${game.fen}`, fenError);
+        throw new Error(`Invalid FEN in database: ${game.fen}`);
+      }
+      
+      // Parse UCI move
+      const from = move.slice(0, 2);
+      const to = move.slice(2, 4);
+      const promotion = move.length > 4 ? move.slice(4, 5) : undefined;
+      
+      console.log(`[Bot] Parsed move: from=${from}, to=${to}, promotion=${promotion || 'none'}`);
+      console.log(`[Bot] Current FEN: ${game.fen}, Turn: ${chess.turn()}`);
+      
+      // Make the move
+      const moveResult = chess.move({
+        from,
+        to,
+        promotion: promotion as 'q' | 'r' | 'b' | 'n' | undefined,
+      });
+      
+      if (!moveResult) {
+        console.error(`[Bot] Invalid move: ${move} for position ${game.fen}`);
+        // Log legal moves for debugging
+        const debugLegalMoves = chess.moves({ verbose: true });
+        console.error(`[Bot] Legal moves:`, debugLegalMoves.map(m => m.from + m.to).join(', '));
+        throw new Error(`Invalid move: ${move}`);
+      }
     
     console.log(`[Bot] Move applied: ${moveResult.san}`);
     console.log(`[Bot] New FEN: ${chess.fen()}`);
@@ -458,6 +474,10 @@ export const makeBotMove = mutation({
       result: patch.result || null,
       winner: patch.winner || null,
     };
+    } catch (error) {
+      console.error(`[Bot] Error in makeBotMove:`, error);
+      throw error;
+    }
   },
 });
 

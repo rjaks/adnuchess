@@ -119,40 +119,28 @@
             </span>
           </div>
         </div>
-      </div>
-
-      <!-- Chess Board -->
-      <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">
-        <div class="flex flex-col lg:flex-row gap-6 items-start justify-center">
-          <!-- Board -->
-          <div class="mx-auto w-full max-w-[420px]">
-            <div class="relative aspect-square">
-              <div class="absolute inset-0 grid grid-cols-8 grid-rows-8 rounded-lg border-2 border-white/30 overflow-hidden">
-                <button
-                  v-for="sq in boardSquares"
-                  :key="sq.square"
-                  type="button"
-                  class="relative flex items-center justify-center text-3xl font-semibold transition focus:outline-none"
-                  :class="squareClass(sq)"
-                  :disabled="!canInteract || botThinking"
-                  @click="handleSquareClick(sq.square)"
-                >
-                  <span v-if="sq.piece" class="drop-shadow-sm">{{ pieceGlyph(sq.piece) }}</span>
-                  <span
-                    v-if="isLegalTarget(sq.square)"
-                    class="absolute h-2.5 w-2.5 rounded-full bg-[#021d94]/70"
-                  ></span>
-                </button>
-              </div>
+      </div>      <!-- Chess Board -->
+      <div class="rounded-4xl border border-white/70 bg-white/60 p-4 sm:p-6 shadow-glass backdrop-blur-xl">
+        <div class="flex flex-col xl:flex-row gap-6 items-center xl:items-start justify-center">
+          <!-- Board using ChessBoard component -->
+          <div class="relative w-full xl:flex-1 xl:max-w-[650px]">
+            <ChessBoard
+              :board-squares="boardSquares"
+              :my-color="myColor"
+              :arrows="arrows"
+              :highlights="highlights"
+              :review-mode="false"
+              :can-interact="canInteract"
+              @square-click="handleBoardSquareClick"
+            />
               
-              <!-- Bot Thinking Overlay -->
-              <div
-                v-if="botThinking"
-                class="pointer-events-none absolute inset-x-8 top-4 flex items-center justify-center gap-2 rounded-full border border-white/70 bg-white/90 px-4 py-2 text-sm font-medium text-[#021d94] shadow-lg"
-              >
-                <span class="inline-flex h-3 w-3 animate-spin rounded-full border-2 border-[#021d94] border-t-transparent"></span>
-                Stockfish is analyzing...
-              </div>
+            <!-- Bot Thinking Overlay -->
+            <div
+              v-if="botThinking"
+              class="pointer-events-none absolute inset-x-8 top-16 flex items-center justify-center gap-2 rounded-full border border-white/70 bg-white/90 px-4 py-2 text-sm font-medium text-[#021d94] shadow-lg z-20"
+            >
+              <span class="inline-flex h-3 w-3 animate-spin rounded-full border-2 border-[#021d94] border-t-transparent"></span>
+              Stockfish is analyzing...
             </div>
           </div>
 
@@ -254,13 +242,42 @@ import { ref, computed, shallowRef, watch, onMounted } from 'vue'
 import { Chess, type Move, type PieceSymbol, type Square } from 'chess.js'
 import { useAuth } from '~/composables/useAuth'
 import { api } from '~/convex/_generated/api'
+import ChessBoard from '~/components/chess/ChessBoard.vue'
 
-// Types
-interface VisualSquare {
-  square: Square
+/**
+ * Normalize UCI castling moves to chess.js format.
+ * Some engines (including Lichess API) use king-to-rook notation for castling:
+ * - e1h1 / e8h8 for kingside castling (should be e1g1 / e8g8)
+ * - e1a1 / e8a8 for queenside castling (should be e1c1 / e8c8)
+ */
+function normalizeUciMove(uciMove: string, chess: Chess): string {
+  const from = uciMove.slice(0, 2)
+  const to = uciMove.slice(2, 4)
+  
+  // Check if this is a castling move (king moving to rook square)
+  const piece = chess.get(from as Square)
+  if (piece?.type === 'k') {
+    // White kingside: e1h1 -> e1g1
+    if (from === 'e1' && to === 'h1') return 'e1g1'
+    // White queenside: e1a1 -> e1c1
+    if (from === 'e1' && to === 'a1') return 'e1c1'
+    // Black kingside: e8h8 -> e8g8
+    if (from === 'e8' && to === 'h8') return 'e8g8'
+    // Black queenside: e8a8 -> e8c8
+    if (from === 'e8' && to === 'a8') return 'e8c8'
+  }
+  
+  return uciMove
+}
+
+// Types - BoardSquare format compatible with ChessBoard component
+interface BoardSquare {
+  file: string
+  rank: number
   piece: { type: PieceSymbol; color: 'w' | 'b' } | null
-  rankIndex: number
-  fileIndex: number
+  isSelected: boolean
+  isLegalMove: boolean
+  isLastMove: boolean
 }
 
 interface DifficultyLevel {
@@ -299,15 +316,21 @@ const botThinking = ref(false)
 const gameOver = ref(false)
 const gameResult = ref<'win' | 'loss' | 'draw' | null>(null)
 const showGameOverModal = ref(false)
+const lastMove = ref<{ from: string; to: string } | null>(null)
 
 // Board configuration
 const files: Array<'a' | 'b' | 'c' | 'd' | 'e' | 'f' | 'g' | 'h'> = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 const ranks = [8, 7, 6, 5, 4, 3, 2, 1]
 
 // Computed properties
-const myColor = computed(() => playerColor.value === 'white' ? 'w' : 'b')
+const myColor = computed(() => playerColor.value)
+const myColorShort = computed(() => playerColor.value === 'white' ? 'w' : 'b')
 const botColor = computed(() => playerColor.value === 'white' ? 'b' : 'w')
-const isMyTurn = computed(() => game.value.turn() === myColor.value)
+const isMyTurn = computed(() => {
+  // Reference fen.value to trigger reactivity when the board changes
+  fen.value
+  return game.value.turn() === myColorShort.value
+})
 const canInteract = computed(() => isMyTurn.value && !gameOver.value && !botThinking.value)
 
 const currentDifficultyName = computed(() => {
@@ -315,37 +338,42 @@ const currentDifficultyName = computed(() => {
   return level?.name || 'Custom'
 })
 
-const boardSquares = computed<VisualSquare[]>(() => {
+// Board squares in ChessBoard component format
+const boardSquares = computed<BoardSquare[]>(() => {
   fen.value // Trigger reactivity
   const board = game.value.board()
-  const visuals: VisualSquare[] = []
+  const squares: BoardSquare[] = []
   
-  // Flip board if playing as black
-  const displayRanks = playerColor.value === 'black' ? [...ranks].reverse() : ranks
-  const displayFiles = playerColor.value === 'black' ? [...files].reverse() : files
+  // Determine display order based on player color
+  const displayRanks = playerColor.value === 'black' ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1]
+  const displayFiles = playerColor.value === 'black' ? ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'] : ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
   
-  for (let rankIdx = 0; rankIdx < 8; rankIdx++) {
-    const rank = displayRanks[rankIdx]!
-    const actualRankIndex = ranks.indexOf(rank)
-    const row = board[actualRankIndex]
-    if (!row) continue
-    
-    for (let fileIdx = 0; fileIdx < 8; fileIdx++) {
-      const file = displayFiles[fileIdx]!
-      const actualFileIndex = files.indexOf(file)
-      const square = `${file}${rank}` as Square
-      const piece = row[actualFileIndex]
+  const legalTargetSet = new Set(legalMoves.value.map(m => m.to))
+  
+  for (const rank of displayRanks) {
+    for (const file of displayFiles) {
+      const actualRankIndex = 8 - rank
+      const actualFileIndex = 'abcdefgh'.indexOf(file)
+      const row = board[actualRankIndex]
+      const piece = row?.[actualFileIndex]
+      const squareNotation = `${file}${rank}`
       
-      visuals.push({
-        square,
-        piece: piece ? { type: piece.type, color: piece.color } : null,
-        rankIndex: rankIdx,
-        fileIndex: fileIdx,
+      squares.push({
+        file,
+        rank,
+        piece: piece ? { type: piece.type as PieceSymbol, color: piece.color } : null,
+        isSelected: selectedSquare.value === squareNotation,
+        isLegalMove: legalTargetSet.has(squareNotation as Square),
+        isLastMove: lastMove.value?.from === squareNotation || lastMove.value?.to === squareNotation,
       })
     }
   }
-  return visuals
+  return squares
 })
+
+// Empty arrays for ChessBoard props (we don't need arrows/highlights for bot game)
+const arrows = ref<{ from: string; to: string; color: 'green' | 'red' | 'yellow' | 'blue' }[]>([])
+const highlights = ref<{ square: string; color: 'green' | 'red' | 'yellow' | 'blue' }[]>([])
 
 const legalTargets = computed(() => new Set(legalMoves.value.map(m => m.to)))
 
@@ -382,32 +410,6 @@ const gameOverMessage = computed(() => {
   if (gameResult.value === 'loss') return 'The bot won this time. Try again!'
   return 'The game ended in a draw.'
 })
-
-// Piece rendering
-const pieceGlyph = (piece: { type: PieceSymbol; color: 'w' | 'b' }) => {
-  const glyphMap: Record<'w' | 'b', Record<PieceSymbol, string>> = {
-    w: { p: '♙', r: '♖', n: '♘', b: '♗', q: '♕', k: '♔' },
-    b: { p: '♟', r: '♜', n: '♞', b: '♝', q: '♛', k: '♚' },
-  }
-  return glyphMap[piece.color][piece.type]
-}
-
-const squareClass = (sq: VisualSquare) => {
-  const isDark = (sq.rankIndex + sq.fileIndex) % 2 === 1
-  const classes = [
-    isDark ? 'bg-[#021d94]/20' : 'bg-white/60',
-    'border border-white/30',
-  ]
-  if (selectedSquare.value === sq.square) {
-    classes.push('ring-2 ring-[#ffaa00]/80')
-  }
-  if (legalTargets.value.has(sq.square)) {
-    classes.push('shadow-inner shadow-[#021d94]/30')
-  }
-  return classes
-}
-
-const isLegalTarget = (square: Square) => legalTargets.value.has(square)
 
 // Game actions
 const startGame = async () => {
@@ -461,6 +463,12 @@ const startGame = async () => {
   }
 }
 
+// Handler for ChessBoard component click events
+const handleBoardSquareClick = (square: BoardSquare) => {
+  const squareNotation = `${square.file}${square.rank}` as Square
+  handleSquareClick(squareNotation)
+}
+
 const handleSquareClick = (square: Square) => {
   if (!canInteract.value) return
   
@@ -475,7 +483,7 @@ const handleSquareClick = (square: Square) => {
   
   // If no piece selected, select this piece if it's ours
   if (!selectedSquare.value) {
-    if (!piece || piece.color !== myColor.value) return
+    if (!piece || piece.color !== myColorShort.value) return
     selectedSquare.value = square
     legalMoves.value = game.value.moves({ square, verbose: true })
     return
@@ -485,7 +493,7 @@ const handleSquareClick = (square: Square) => {
   const move = legalMoves.value.find(m => m.to === square)
   if (!move) {
     // If clicking own piece, switch selection
-    if (piece && piece.color === myColor.value) {
+    if (piece && piece.color === myColorShort.value) {
       selectedSquare.value = square
       legalMoves.value = game.value.moves({ square, verbose: true })
     }
@@ -500,7 +508,8 @@ const makeUserMove = async (from: Square, to: Square, promotion: 'q' | 'r' | 'b'
   const moveResult = game.value.move({ from, to, promotion })
   if (!moveResult) return
   
-  // Update local state
+  // Update local state and track last move
+  lastMove.value = { from, to }
   selectedSquare.value = null
   legalMoves.value = []
   fen.value = game.value.fen()
@@ -509,9 +518,13 @@ const makeUserMove = async (from: Square, to: Square, promotion: 'q' | 'r' | 'b'
   // Sync to Convex
   if (gameId.value) {
     try {
+      // Build UCI move format: e2e4 or e7e8q (with promotion)
+      // Only include promotion suffix if the move actually involved a promotion
+      const uciMove = from + to + (moveResult.promotion || '')
+      
       await $convex.mutation(api.bot.makeBotMove, {
         gameId: gameId.value,
-        move: from + to + (promotion !== 'q' ? promotion : ''),
+        move: uciMove,
       })
     } catch (error) {
       console.error('Failed to sync move to Convex:', error)
@@ -538,18 +551,20 @@ const requestBotMove = async () => {
       fen: game.value.fen(),
       difficultyDepth: selectedDifficulty.value,
     })
-    
-    if (!result.success || !result.move) {
+      if (!result.success || !result.move) {
       console.error('Bot move failed:', result.error)
       statusMessage.value = 'Bot failed to calculate move. Your turn.'
       botThinking.value = false
       return
     }
     
+    // Normalize the UCI move (handles castling notation differences)
+    const normalizedMove = normalizeUciMove(result.move, game.value)
+    
     // Apply bot move locally
-    const from = result.move.slice(0, 2) as Square
-    const to = result.move.slice(2, 4) as Square
-    const promotion = result.move.length > 4 ? result.move.slice(4, 5) as 'q' | 'r' | 'b' | 'n' : undefined
+    const from = normalizedMove.slice(0, 2) as Square
+    const to = normalizedMove.slice(2, 4) as Square
+    const promotion = normalizedMove.length > 4 ? normalizedMove.slice(4, 5) as 'q' | 'r' | 'b' | 'n' : undefined
     
     const moveResult = game.value.move({ from, to, promotion })
     if (!moveResult) {
@@ -558,15 +573,15 @@ const requestBotMove = async () => {
       botThinking.value = false
       return
     }
-    
-    // Update local state
+      // Update local state and track last move
+    lastMove.value = { from, to }
     fen.value = game.value.fen()
     moveHistory.value = game.value.history()
     
-    // Sync bot move to Convex
+    // Sync bot move to Convex (use normalized move)
     await $convex.mutation(api.bot.makeBotMove, {
       gameId: gameId.value,
-      move: result.move,
+      move: normalizedMove,
     })
     
     // Check for game over
@@ -624,7 +639,7 @@ const undoMove = () => {
   
   // Undo both user's and bot's move
   game.value.undo()
-  if (game.value.turn() !== myColor.value) {
+  if (game.value.turn() !== myColorShort.value) {
     game.value.undo()
   }
   
@@ -632,6 +647,7 @@ const undoMove = () => {
   moveHistory.value = game.value.history()
   selectedSquare.value = null
   legalMoves.value = []
+  lastMove.value = null
   statusMessage.value = 'Move undone. Your turn.'
 }
 
@@ -654,6 +670,7 @@ const newGame = () => {
   moveHistory.value = []
   selectedSquare.value = null
   legalMoves.value = []
+  lastMove.value = null
   statusMessage.value = 'Click a piece to begin'
   gameId.value = null
 }
