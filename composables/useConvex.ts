@@ -6,7 +6,6 @@ export function useConvex() {
   const { $convex } = useNuxtApp()
   const loading = ref(false)
   const error = ref<Error | null>(null)
-
   // Generic API wrapper
   const apiWrapper = {
     query: async (module: string, functionName: string, args?: any) => {
@@ -40,6 +39,25 @@ export function useConvex() {
           const apiPath = apiModule?.[functionName]
           if (apiPath) {
             return await $convex.mutation(apiPath, args || {})
+          }
+          throw pathError
+        } catch (apiError) {
+          throw pathError
+        }
+      }
+    },
+    action: async (module: string, functionName: string, args?: any) => {
+      try {
+        // Try direct path first
+        const result = await $convex.action(`${module}:${functionName}`, args || {})
+        return result
+      } catch (pathError: any) {
+        // Fall back to constructed API path if available
+        try {
+          const apiModule = (api as any)[module]
+          const apiPath = apiModule?.[functionName]
+          if (apiPath) {
+            return await $convex.action(apiPath, args || {})
           }
           throw pathError
         } catch (apiError) {

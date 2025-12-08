@@ -1,16 +1,23 @@
 <template>
   <div class="space-y-8">
     <header class="rounded-4xl border border-white/70 bg-white/70 p-8 shadow-glass backdrop-blur-xl">
-      <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/70">AdNU vs Stockfish</p>
+      <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#021d94]/70">Play vs AI Bot</p>
+      <h1 class="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">Challenge Stockfish</h1>
       <p class="mt-2 max-w-2xl text-sm text-slate-600">
-        Click <strong>Start New Game</strong> or pick up a white piece to begin. Every completed match updates your AdNU Chess profile, tracking wins, losses, draws, and badge progress in real time.
+        Play against our AI powered by the Lichess Cloud Stockfish engine. Choose your difficulty level 
+        and test your chess skills. All games are saved to your profile for tracking your progress.
       </p>
     </header>
-    <ChessArena />
+    <BotGameHandler />
   </div>
 </template>
 
 <script setup lang="ts">
-import ChessArena from '~/components/ChessArena.vue'
+import BotGameHandler from '~/components/BotGameHandler.vue'
+
+// Page metadata
+definePageMeta({
+  title: 'Play vs Bot',
+})
 </script>
 

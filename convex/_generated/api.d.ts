@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as admin from "../admin.js";
+import type * as bot from "../bot.js";
 import type * as chat from "../chat.js";
 import type * as chess_games from "../chess_games.js";
 import type * as chess_games_gameEnd from "../chess_games_gameEnd.js";
@@ -38,6 +39,7 @@ import type * as utils_timerHelpers from "../utils/timerHelpers.js";
  */
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  bot: typeof bot;
   chat: typeof chat;
   chess_games: typeof chess_games;
   chess_games_gameEnd: typeof chess_games_gameEnd;

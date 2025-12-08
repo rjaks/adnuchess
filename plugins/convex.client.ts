@@ -78,6 +78,9 @@ export default defineNuxtPlugin(() => {
     async mutation(mutationFunction: any, args: any) {
       return await runWithFallback((client) => client.mutation(mutationFunction, args));
     },
+    async action(actionFunction: any, args: any) {
+      return await runWithFallback((client) => client.action(actionFunction, args));
+    },
     onUpdate(queryFunction: any, args: any, callback: (result: any) => void) {
       const attempt = (client: ConvexClient) => client.onUpdate(queryFunction, args, callback);
       if (clients.primary) {
