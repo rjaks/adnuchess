@@ -728,6 +728,18 @@ interface LichessCloudEvalResponse {
 }
 
 /**
+ * Stockfish Online API Response Type
+ * This API actually computes moves in real-time (unlike Lichess cloud which is just a lookup)
+ */
+interface StockfishOnlineResponse {
+  success: boolean;
+  bestmove?: string;
+  evaluation?: number;
+  mate?: number | null;
+  continuation?: string;
+}
+
+/**
  * Convex Action: Get Bot Move from Lichess Cloud Stockfish API
  * 
  * Calls the Lichess Cloud Stockfish API to get the best move for the bot.
@@ -789,11 +801,49 @@ export const getLichessBotMove = action({
           'Accept': 'application/json',
         },
       });
-      
-      if (!response.ok) {
-        // If position not in cloud database, fall back to local calculation
+        if (!response.ok) {
+        // If position not in cloud database, fall back to Stockfish Online API
         if (response.status === 404) {
-          console.log(`[Lichess Bot] Position not in cloud database, falling back to local calculation`);
+          console.log(`[Lichess Bot] Position not in cloud database, trying Stockfish Online API`);
+          
+          // Use stockfish.online API which computes moves in real-time
+          // Clamp depth for faster response (10-12 is good balance of speed and strength)
+          const onlineDepth = Math.min(difficultyDepth, 12);
+          const stockfishOnlineUrl = `https://stockfish.online/api/s/v2.php?fen=${encodedFen}&depth=${onlineDepth}`;
+          
+          try {
+            const stockfishResponse = await fetch(stockfishOnlineUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+            });
+            
+            if (stockfishResponse.ok) {
+              const stockfishData: StockfishOnlineResponse = await stockfishResponse.json();
+              
+              if (stockfishData.success && stockfishData.bestmove) {
+                // Parse bestmove from format "bestmove e2e4 ponder e7e5" to just "e2e4"
+                const bestMoveMatch = stockfishData.bestmove.match(/bestmove\s+(\S+)/);
+                const bestMove = bestMoveMatch ? bestMoveMatch[1] : stockfishData.bestmove;
+                
+                console.log(`[Stockfish Online] Best move: ${bestMove}`);
+                
+                return {
+                  success: true,
+                  move: bestMove,
+                  evaluation: {
+                    depth: onlineDepth,
+                    cp: stockfishData.evaluation ? Math.round(stockfishData.evaluation * 100) : undefined,
+                    mate: stockfishData.mate ?? undefined,
+                  },
+                };
+              }
+            }
+          } catch (stockfishError) {
+            console.log(`[Stockfish Online] API failed, falling back to local:`, stockfishError);
+          }
+          
+          // Final fallback to local calculation
+          console.log(`[Lichess Bot] Stockfish Online also failed, using local calculation`);
           const localMove = getBestMove(fen, difficultyDepth);
           
           if (!localMove) {
@@ -912,10 +962,43 @@ export const internalGetLichessBotMove = internalAction({
         method: 'GET',
         headers: { 'Accept': 'application/json' },
       });
-      
-      if (!response.ok) {
+        if (!response.ok) {
         if (response.status === 404) {
-          // Position not in cloud, use local calculation
+          // Position not in cloud, try Stockfish Online API
+          console.log(`[Lichess Bot Internal] Position not in cloud, trying Stockfish Online API`);
+          
+          const onlineDepth = Math.min(difficultyDepth, 12);
+          const stockfishOnlineUrl = `https://stockfish.online/api/s/v2.php?fen=${encodedFen}&depth=${onlineDepth}`;
+          
+          try {
+            const stockfishResponse = await fetch(stockfishOnlineUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+            });
+            
+            if (stockfishResponse.ok) {
+              const stockfishData: StockfishOnlineResponse = await stockfishResponse.json();
+              
+              if (stockfishData.success && stockfishData.bestmove) {
+                const bestMoveMatch = stockfishData.bestmove.match(/bestmove\s+(\S+)/);
+                const bestMove = bestMoveMatch ? bestMoveMatch[1] : stockfishData.bestmove;
+                
+                return {
+                  success: true,
+                  move: bestMove,
+                  evaluation: {
+                    depth: onlineDepth,
+                    cp: stockfishData.evaluation ? Math.round(stockfishData.evaluation * 100) : undefined,
+                    mate: stockfishData.mate ?? undefined,
+                  },
+                };
+              }
+            }
+          } catch (stockfishError) {
+            console.log(`[Lichess Bot Internal] Stockfish Online failed:`, stockfishError);
+          }
+          
+          // Final fallback to local calculation
           const localMove = getBestMove(fen, difficultyDepth);
           return {
             success: localMove !== null,
