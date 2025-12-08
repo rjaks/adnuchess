@@ -35,11 +35,149 @@ const DIFFICULTY_PRESETS: Record<number, BotDifficulty> = {
   
   // Medium (depth 10): Balanced play
   10: { depth: 10, randomness: 0.3, evaluateCaptures: true, evaluateCenterControl: true, evaluateKingSafety: true },
-  
-  // Hard (depth 15+): Minimal randomness, strong evaluation
+    // Hard (depth 15+): Minimal randomness, strong evaluation
   15: { depth: 15, randomness: 0.15, evaluateCaptures: true, evaluateCenterControl: true, evaluateKingSafety: true },
   20: { depth: 20, randomness: 0.05, evaluateCaptures: true, evaluateCenterControl: true, evaluateKingSafety: true },
 };
+
+/**
+ * Get randomness factor based on difficulty depth
+ * Lower difficulty = higher chance to pick suboptimal moves
+ */
+function getRandomnessForDifficulty(difficultyDepth: number): number {
+  const difficultyKeys = Object.keys(DIFFICULTY_PRESETS).map(Number).sort((a, b) => a - b);
+  let selectedDifficulty = difficultyKeys[0];
+  for (const key of difficultyKeys) {
+    if (difficultyDepth >= key) {
+      selectedDifficulty = key;
+    }
+  }
+  return DIFFICULTY_PRESETS[selectedDifficulty]?.randomness ?? 0.3;
+}
+
+/**
+ * Apply difficulty-based move selection
+ * Instead of always picking the best move, lower difficulties may pick alternative moves
+ * 
+ * @param fen - Current board position
+ * @param bestMove - The objectively best move from engine
+ * @param difficultyDepth - The difficulty level (5=beginner, 10=easy, 15=medium, 20=hard)
+ * @returns Either the best move or an alternative based on difficulty
+ */
+function applyDifficultyToMove(fen: string, bestMove: string, difficultyDepth: number): string {
+  const randomness = getRandomnessForDifficulty(difficultyDepth);
+  
+  // Hard difficulty (20): Almost always play the best move
+  if (randomness <= 0.1) {
+    return bestMove;
+  }
+  
+  // Roll the dice - should we deviate from the best move?
+  const roll = Math.random();
+  if (roll > randomness) {
+    // Play the best move
+    return bestMove;
+  }
+  
+  // Try to pick an alternative move
+  try {
+    const chess = new Chess(fen);
+    const allMoves = chess.moves({ verbose: true });
+    
+    if (allMoves.length <= 1) {
+      return bestMove; // Only one legal move
+    }
+    
+    // Filter out obviously bad moves (hanging pieces, etc.) for medium difficulties
+    // For very easy difficulties, allow some blunders
+    const validAlternatives = allMoves.filter(move => {
+      const uciMove = move.from + move.to + (move.promotion || '');
+      if (uciMove === bestMove) return false; // Exclude the best move
+      
+      // For beginner (depth 5), allow any move
+      if (difficultyDepth <= 5) return true;
+      
+      // For easy (depth 10), prefer captures and central moves, but allow others
+      if (difficultyDepth <= 10) {
+        // Still allow most moves, just with some filtering
+        return true;
+      }
+      
+      // For medium (depth 15), be more selective - prefer reasonable moves
+      // Avoid obvious blunders like moving into immediate capture without compensation
+      chess.move(move.san);
+      const inCheck = chess.inCheck();
+      chess.undo();
+      
+      // Captures are usually reasonable alternatives
+      if (move.captured) return true;
+      
+      // Avoid moves that put us in check response situations (unless it's our only option)
+      if (!inCheck) return true;
+      
+      return false;
+    });
+    
+    if (validAlternatives.length === 0) {
+      return bestMove;
+    }
+    
+    // Weight selection based on move quality
+    // Captures and center moves are more likely to be picked
+    const weightedMoves: Array<{ move: typeof allMoves[0]; weight: number }> = [];
+    
+    for (const move of validAlternatives) {
+      let weight = 1;
+      
+      // Captures are decent alternatives
+      if (move.captured) {
+        weight += 3;
+        // Better captures (taking higher value pieces) get more weight
+        const capturedValue = PIECE_VALUES[move.captured] || 100;
+        weight += capturedValue / 200;
+      }
+      
+      // Center moves are reasonable
+      if (['d4', 'd5', 'e4', 'e5', 'c4', 'c5', 'f4', 'f5'].includes(move.to)) {
+        weight += 2;
+      }
+      
+      // Developing moves (knights and bishops in opening)
+      if ((move.piece === 'n' || move.piece === 'b') && 
+          ['1', '2', '7', '8'].includes(move.from[1])) {
+        weight += 1.5;
+      }
+      
+      // Castling is always a reasonable alternative
+      if (move.san === 'O-O' || move.san === 'O-O-O') {
+        weight += 4;
+      }
+      
+      weightedMoves.push({ move, weight });
+    }
+    
+    // Select based on weights
+    const totalWeight = weightedMoves.reduce((sum, m) => sum + m.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const { move, weight } of weightedMoves) {
+      random -= weight;
+      if (random <= 0) {
+        const selectedMove = move.from + move.to + (move.promotion || '');
+        console.log(`[Difficulty] Picked alternative move ${selectedMove} instead of ${bestMove} (randomness: ${randomness})`);
+        return selectedMove;
+      }
+    }
+    
+    // Fallback to first alternative
+    const fallback = validAlternatives[0];
+    return fallback.from + fallback.to + (fallback.promotion || '');
+    
+  } catch (error) {
+    console.error('[Difficulty] Error selecting alternative move:', error);
+    return bestMove;
+  }
+}
 
 /**
  * Piece values for material evaluation
@@ -816,8 +954,7 @@ export const getLichessBotMove = action({
               method: 'GET',
               headers: { 'Accept': 'application/json' },
             });
-            
-            if (stockfishResponse.ok) {
+              if (stockfishResponse.ok) {
               const stockfishData: StockfishOnlineResponse = await stockfishResponse.json();
               
               if (stockfishData.success && stockfishData.bestmove) {
@@ -827,9 +964,12 @@ export const getLichessBotMove = action({
                 
                 console.log(`[Stockfish Online] Best move: ${bestMove}`);
                 
+                // Apply difficulty-based move selection
+                const finalMove = applyDifficultyToMove(fen, bestMove, difficultyDepth);
+                
                 return {
                   success: true,
-                  move: bestMove,
+                  move: finalMove,
                   evaluation: {
                     depth: onlineDepth,
                     cp: stockfishData.evaluation ? Math.round(stockfishData.evaluation * 100) : undefined,
@@ -881,15 +1021,17 @@ export const getLichessBotMove = action({
           error: localMove ? undefined : 'No valid moves available',
         };
       }
-      
-      // Get the first move from the principal variation
+        // Get the first move from the principal variation
       const bestMove = data.pvs[0].moves.split(' ')[0];
       
       console.log(`[Lichess Bot] Best move from Lichess: ${bestMove}`);
       
+      // Apply difficulty-based move selection (lower difficulties may pick alternatives)
+      const finalMove = applyDifficultyToMove(fen, bestMove, difficultyDepth);
+      
       return {
         success: true,
-        move: bestMove,
+        move: finalMove,
         evaluation: {
           depth: data.depth,
           cp: data.pvs[0].cp,
@@ -978,14 +1120,16 @@ export const internalGetLichessBotMove = internalAction({
             
             if (stockfishResponse.ok) {
               const stockfishData: StockfishOnlineResponse = await stockfishResponse.json();
-              
-              if (stockfishData.success && stockfishData.bestmove) {
+                if (stockfishData.success && stockfishData.bestmove) {
                 const bestMoveMatch = stockfishData.bestmove.match(/bestmove\s+(\S+)/);
                 const bestMove = bestMoveMatch ? bestMoveMatch[1] : stockfishData.bestmove;
                 
+                // Apply difficulty-based move selection
+                const finalMove = applyDifficultyToMove(fen, bestMove, difficultyDepth);
+                
                 return {
                   success: true,
-                  move: bestMove,
+                  move: finalMove,
                   evaluation: {
                     depth: onlineDepth,
                     cp: stockfishData.evaluation ? Math.round(stockfishData.evaluation * 100) : undefined,
@@ -1018,12 +1162,14 @@ export const internalGetLichessBotMove = internalAction({
           move: localMove,
         };
       }
+        const bestMove = data.pvs[0].moves.split(' ')[0];
       
-      const bestMove = data.pvs[0].moves.split(' ')[0];
+      // Apply difficulty-based move selection
+      const finalMove = applyDifficultyToMove(fen, bestMove, difficultyDepth);
       
       return {
         success: true,
-        move: bestMove,
+        move: finalMove,
         evaluation: {
           depth: data.depth,
           cp: data.pvs[0].cp,
