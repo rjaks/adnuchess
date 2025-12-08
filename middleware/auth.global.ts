@@ -4,7 +4,8 @@ import { api } from '../convex/_generated/api'
 
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const publicPaths = ['/welcome', '/login', '/profile-setup']
-  const adminPaths = ['/admin'] // Allow admin pages to load for everyone
+  const adminPaths = ['/admin', '/quizmania/admin'] // Allow admin pages to load for everyone
+  const authRequiredPaths = ['/quizmania', '/account', '/profile', '/settings', '/leaderboard'] // Paths that require auth but should allow navigation
 
   // Skip middleware for Nuxt internal routes and API routes
   if (to.path.startsWith('/_nuxt') || to.path.startsWith('/__nuxt_error') || to.path.startsWith('/api/')) {
@@ -32,7 +33,13 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     }
 
     // Only redirect if user is NOT authenticated and trying to access protected routes
+    // Exception: Don't redirect if navigating within the same app section (let the page handle auth)
     if (!auth.user.value && !publicPaths.includes(to.path)) {
+      // If coming from quizmania and going to quizmania results, allow it temporarily
+      if (from?.path?.startsWith('/quizmania') && to.path.startsWith('/quizmania/results/')) {
+        console.log('🔄 Middleware: Allowing navigation to quiz results from quiz page')
+        return
+      }
       console.log('🔄 Middleware: Redirecting unauthenticated user to welcome')
       return navigateTo('/welcome')
     }

@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-4xl mx-auto">
     <!-- Quiz Header -->
-    <div class="bg-white/90 rounded-2xl p-6 mb-6 border border-white/60">
+    <div v-if="!showTimeUpModal" class="bg-white/90 rounded-2xl p-6 mb-6 border border-white/60">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
           <button @click="$emit('quit-quiz')" 
@@ -48,7 +48,7 @@
     </div>
 
     <!-- Question Card -->
-    <div v-if="session.currentQuestion" class="bg-white/90 rounded-3xl p-8 border border-white/60 mb-6">
+    <div v-if="session.currentQuestion && !showTimeUpModal && !showCompletionModal" class="bg-white/90 rounded-3xl p-8 border border-white/60 mb-6">
       <!-- Question -->
       <div class="mb-8">
         <div class="text-sm font-semibold text-purple-600 mb-2 uppercase tracking-wide">
@@ -143,6 +143,80 @@
         View Results
       </button>
     </div>
+
+    <!-- Time's Up Modal -->
+    <div v-if="showTimeUpModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+        <div class="text-center">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-slate-800 mb-2">Time's Up!</h2>
+          <p class="text-slate-600 mb-4">The 5-minute timer has expired.</p>
+          
+          <div class="bg-purple-50 rounded-xl p-4 mb-6">
+            <div class="text-sm text-slate-600 mb-1">Your Score</div>
+            <div class="text-3xl font-bold text-purple-600">{{ session.totalScore }}</div>
+            <div class="text-sm text-slate-500 mt-1">
+              {{ session.correctAnswers }} / {{ session.currentQuestionIndex }} correct
+            </div>
+          </div>
+          
+          <div class="flex gap-3">
+            <button @click="tryAgain" 
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all">
+              Try Again
+            </button>
+            <button @click="viewResults" 
+                    class="flex-1 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all">
+              View Results
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiz Completion Modal -->
+    <div v-if="showCompletionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
+        <div class="text-center">
+          <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+               :class="getCompletionColorClass()">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h2 class="text-3xl font-bold text-slate-800 mb-2">{{ getCompletionTitle() }}</h2>
+          <p class="text-slate-600 mb-6">{{ getCompletionMessage() }}</p>
+          
+          <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 mb-6">
+            <div class="text-sm text-slate-600 mb-2">Your Score</div>
+            <div class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+              {{ session.totalScore }}
+            </div>
+            <div class="text-sm text-slate-600">
+              {{ session.correctAnswers }} / {{ session.totalQuestions }} correct
+            </div>
+            <div class="text-sm text-purple-600 font-semibold mt-2">
+              {{ Math.round((session.correctAnswers / session.totalQuestions) * 100) }}% Accuracy
+            </div>
+          </div>
+          
+          <div class="flex gap-3">
+            <button @click="tryAgain" 
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all">
+              Try Again
+            </button>
+            <button @click="viewResults" 
+                    class="flex-1 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all">
+              View Results
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -165,6 +239,7 @@ const props = defineProps<{
 const emits = defineEmits<{
   'quiz-completed': [sessionId: string]
   'quit-quiz': []
+  'retry-quiz': []
 }>()
 
 const { $convex } = useNuxtApp()
@@ -180,6 +255,8 @@ const questionTimeRemaining = ref<number | null>(null)
 const timeRemaining = ref<number | null>(null)
 const questionTimer = ref<NodeJS.Timeout | null>(null)
 const globalTimer = ref<NodeJS.Timeout | null>(null)
+const showTimeUpModal = ref(false)
+const showCompletionModal = ref(false)
 
 const currentQuestionId = computed(() => props.session.currentQuestion?._id)
 
@@ -201,9 +278,16 @@ const ensureOptionOrder = () => {
 
 // Initialize timers
 const initializeTimers = () => {
-  // Question-specific timer for challenge mode
+  // Question-specific timer for challenge mode (Quick Fire)
   if (props.session.gameMode === 'challenge' && props.session.currentQuestion) {
-    questionTimeRemaining.value = props.session.currentQuestion.timeLimit
+    // Clean up question timer only
+    if (questionTimer.value) {
+      clearInterval(questionTimer.value)
+      questionTimer.value = null
+    }
+    
+    // Force 10 seconds for all Quick Fire questions
+    questionTimeRemaining.value = 10
     
     questionTimer.value = setInterval(() => {
       if (questionTimeRemaining.value !== null && questionTimeRemaining.value > 0) {
@@ -215,15 +299,21 @@ const initializeTimers = () => {
     }, 1000)
   }
   
-  // Global timer for timed mode
-  if (props.session.gameMode === 'timed' && props.session.timeRemaining) {
+  // Global timer for timed mode - only initialize once, not on every question
+  if (props.session.gameMode === 'timed' && props.session.timeRemaining && !globalTimer.value) {
     timeRemaining.value = Math.floor(props.session.timeRemaining / 1000)
+    
+    console.log('[Timer] Initializing global timer with', timeRemaining.value, 'seconds')
     
     globalTimer.value = setInterval(() => {
       if (timeRemaining.value !== null && timeRemaining.value > 0) {
         timeRemaining.value--
+        if (timeRemaining.value % 10 === 0) {
+          console.log('[Timer] Time remaining:', timeRemaining.value)
+        }
       } else {
         // Time's up - end quiz
+        console.log('[Timer] Time is up! Calling endQuiz()')
         endQuiz()
       }
     }, 1000)
@@ -242,6 +332,14 @@ const cleanupTimers = () => {
   }
 }
 
+// Clean up only question timer (for Quick Fire mode)
+const cleanupQuestionTimer = () => {
+  if (questionTimer.value) {
+    clearInterval(questionTimer.value)
+    questionTimer.value = null
+  }
+}
+
 // Select answer and submit
 const selectAnswer = async (answerIndex: number | null) => {
   if (answerSubmitted.value) return
@@ -250,7 +348,11 @@ const selectAnswer = async (answerIndex: number | null) => {
   answerSubmitted.value = true
   
   const timeSpent = Date.now() - questionStartTime.value
-  cleanupTimers()
+  
+  // Only cleanup question timer for Quick Fire, keep global timer running for Timed Challenge
+  if (props.session.gameMode === 'challenge') {
+    cleanupQuestionTimer()
+  }
   
   try {
     const question = props.session.currentQuestion
@@ -261,17 +363,33 @@ const selectAnswer = async (answerIndex: number | null) => {
       sessionId: props.session._id,
       answer: originalAnswer,
       timeSpent,
+      optionOrder: order, // Store the shuffled order
     })
     
     lastAnswerResult.value = result
     showFeedback.value = true
     
-    // Update session data
+    // Update session data (don't increment currentQuestionIndex yet)
     Object.assign(props.session, {
       totalScore: result.totalScore,
-      currentQuestionIndex: props.session.currentQuestionIndex + 1,
       status: result.isComplete ? 'completed' : 'active'
     })
+    
+    // Stop the global timer when quiz is complete
+    if (result.isComplete && globalTimer.value) {
+      clearInterval(globalTimer.value)
+      globalTimer.value = null
+    }
+    
+    // Show completion modal immediately when quiz is complete
+    if (result.isComplete) {
+      console.log('[SelectAnswer] Quiz complete, showing completion modal immediately')
+      // Small delay to show the feedback first
+      setTimeout(() => {
+        showCompletionModal.value = true
+        console.log('[SelectAnswer] Completion modal displayed')
+      }, 1500) // 1.5 second delay to let user see if they got the last answer right
+    }
     
   } catch (error) {
     console.error('Failed to submit answer:', error)
@@ -282,7 +400,11 @@ const selectAnswer = async (answerIndex: number | null) => {
 // Move to next question
 const nextQuestion = async () => {
   if (lastAnswerResult.value?.isComplete) {
-    emits('quiz-completed', props.session._id)
+    // Quiz is complete - show completion modal
+    console.log('[NextQuestion] Quiz complete, showing completion modal')
+    cleanupTimers()
+    showCompletionModal.value = true
+    console.log('[NextQuestion] showCompletionModal set to:', showCompletionModal.value)
     return
   }
   
@@ -299,7 +421,11 @@ const nextQuestion = async () => {
       sessionId: props.session._id
     })
     
-    Object.assign(props.session, updatedSession)
+    // Increment the question index when actually moving to the next question
+    Object.assign(props.session, {
+      ...updatedSession,
+      currentQuestionIndex: props.session.currentQuestionIndex + 1
+    })
     ensureOptionOrder()
     initializeTimers()
     
@@ -310,8 +436,80 @@ const nextQuestion = async () => {
 
 // End quiz (for time limits)
 const endQuiz = async () => {
+  console.log('[EndQuiz] Called, gameMode:', props.session.gameMode)
   cleanupTimers()
-  emits('quiz-completed', props.session._id)
+  
+  // For timed mode, show the time-up modal immediately
+  if (props.session.gameMode === 'timed') {
+    console.log('[EndQuiz] Timed mode detected, showing modal immediately')
+    
+    // Update local session status
+    props.session.status = 'completed'
+    
+    console.log('[EndQuiz] Setting showTimeUpModal to true')
+    showTimeUpModal.value = true
+    
+    // Save the session in the background (don't wait for it)
+    $convex.mutation("quiz:endTimedQuiz", {
+      sessionId: props.session._id
+    }).catch(error => {
+      console.error('[EndQuiz] Failed to save timed quiz (non-blocking):', error)
+    })
+  } else {
+    console.log('[EndQuiz] Not timed mode, emitting quiz-completed')
+    emits('quiz-completed', props.session._id)
+  }
+}
+
+// Time-up modal: Try again
+const tryAgain = () => {
+  console.log('[TryAgain] Closing modals and retrying quiz')
+  showTimeUpModal.value = false
+  showCompletionModal.value = false
+  emits('retry-quiz')
+}
+
+// Time-up modal: View results
+const viewResults = () => {
+  const sessionId = props.session._id
+  console.log('[ViewResults] Button clicked')
+  console.log('[ViewResults] Session object:', props.session)
+  console.log('[ViewResults] Session ID:', sessionId)
+  
+  if (!sessionId) {
+    console.error('[ViewResults] No session ID found!')
+    return
+  }
+  
+  showTimeUpModal.value = false
+  showCompletionModal.value = false
+  console.log('[ViewResults] Emitting quiz-completed with sessionId:', sessionId)
+  emits('quiz-completed', sessionId)
+}
+
+// Completion modal helpers
+const getCompletionColorClass = () => {
+  const accuracy = (props.session.correctAnswers / props.session.totalQuestions) * 100
+  if (accuracy === 100) return 'bg-gradient-to-br from-yellow-400 to-amber-500'
+  if (accuracy >= 80) return 'bg-gradient-to-br from-green-400 to-emerald-500'
+  if (accuracy >= 60) return 'bg-gradient-to-br from-blue-400 to-indigo-500'
+  return 'bg-gradient-to-br from-purple-400 to-purple-500'
+}
+
+const getCompletionTitle = () => {
+  const accuracy = (props.session.correctAnswers / props.session.totalQuestions) * 100
+  if (accuracy === 100) return 'Perfect! 🎉'
+  if (accuracy >= 80) return 'Excellent! 🌟'
+  if (accuracy >= 60) return 'Good Job! 👏'
+  return 'Quiz Complete! ✨'
+}
+
+const getCompletionMessage = () => {
+  const accuracy = (props.session.correctAnswers / props.session.totalQuestions) * 100
+  if (accuracy === 100) return 'Outstanding! You got every question right!'
+  if (accuracy >= 80) return 'Great work! You really know your chess!'
+  if (accuracy >= 60) return 'Nice effort! Keep practicing to improve!'
+  return 'Keep learning and you\'ll get better!'
 }
 
 // Get option styling classes
@@ -377,7 +575,16 @@ watch(() => props.session.currentQuestion, () => {
       initializeTimers()
     }
   }
-}, { immediate: true })
+})
+
+// Watch for modal state changes
+watch(showTimeUpModal, (newVal) => {
+  console.log('[Modal] showTimeUpModal changed to:', newVal)
+})
+
+watch(showCompletionModal, (newVal) => {
+  console.log('[Modal] showCompletionModal changed to:', newVal)
+})
 
 // Initialize on mount
 onMounted(() => {

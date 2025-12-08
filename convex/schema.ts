@@ -171,7 +171,9 @@ export default defineSchema({
     questions: v.array(v.id("quizQuestions")), // Array of question IDs
     answers: v.array(v.object({
       questionId: v.id("quizQuestions"),
-      userAnswer: v.optional(v.number()), // User's selected option index
+      userAnswer: v.optional(v.number()), // User's selected option index (in ORIGINAL order)
+      correctAnswer: v.number(), // Index of the correct answer (in ORIGINAL order)
+      optionOrder: v.optional(v.array(v.number())), // Shuffled order shown to user [2,0,3,1] means option 2 was shown first
       isCorrect: v.boolean(),
       timeSpent: v.number(), // Milliseconds
       pointsEarned: v.number(),
