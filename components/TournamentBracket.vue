@@ -584,6 +584,7 @@ interface Tournament {
   name: string
   status: 'waiting' | 'ready' | 'active' | 'completed'
   maxPlayers: number
+  bestOf?: number
   currentPlayers: number
   players: Player[]
   rounds: Round[]
@@ -618,35 +619,11 @@ const showInviteModal = ref(false)
 const playerSearchQuery = ref('')
 const pendingInvites = ref<{ userId: string; playerName: string; sentAt: number }[]>([])
 
-// Mock list of all available players in the system (would come from backend)
-const allSystemPlayers = ref([
-  { userId: 'player-4', name: 'Anna Torres', department: 'Psychology', elo: 1400 },
-  { userId: 'player-5', name: 'Mark Lee', department: 'Computer Science', elo: 1550 },
-  { userId: 'player-6', name: 'Sarah Chen', department: 'Engineering', elo: 1500 },
-  { userId: 'player-7', name: 'David Kim', department: 'Mathematics', elo: 1600 },
-  { userId: 'player-8', name: 'Lisa Brown', department: 'Business Admin', elo: 1450 },
-])
-
 const availablePlayers = computed(() => props.tournament.players)
 
-const invitablePlayers = computed(() => {
-  // Filter out players already in tournament and those with pending invites
-  const tournamentPlayerIds = props.tournament.players.map(p => p.userId)
-  const pendingInviteIds = pendingInvites.value.map(i => i.userId)
-  return allSystemPlayers.value.filter(p => 
-    !tournamentPlayerIds.includes(p.userId) && 
-    !pendingInviteIds.includes(p.userId)
-  )
-})
+const invitablePlayers = computed(() => [])
 
-const filteredInvitablePlayers = computed(() => {
-  if (!playerSearchQuery.value) return invitablePlayers.value
-  const query = playerSearchQuery.value.toLowerCase()
-  return invitablePlayers.value.filter(p => 
-    p.name.toLowerCase().includes(query) ||
-    (p.department && p.department.toLowerCase().includes(query))
-  )
-})
+const filteredInvitablePlayers = computed(() => [])
 
 const isInvitePending = (userId: string) => {
   return pendingInvites.value.some(i => i.userId === userId)
@@ -700,6 +677,20 @@ const assignPlayerToSlot = (player: Player, slotIndex: number) => {
 watch(() => props.tournament.maxPlayers, (maxPlayers) => {
   bracketSlots.value = Array(maxPlayers).fill(null)
 }, { immediate: true })
+
+watch(
+  () => props.tournament.players,
+  (players) => {
+    const slots = Array(props.tournament.maxPlayers).fill(null)
+    players.forEach((player, index) => {
+      if (index < slots.length) {
+        slots[index] = player
+      }
+    })
+    bracketSlots.value = slots
+  },
+  { immediate: true, deep: true },
+)
 
 const handleSeedingConfirm = (seededPlayers: Player[]) => {
   showSeeding.value = false
@@ -2056,5 +2047,3 @@ const getMatchGap = (roundIndex: number) => {
   transform: translateY(-2px);
 }
 </style>
-
-

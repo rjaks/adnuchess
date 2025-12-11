@@ -1,120 +1,189 @@
 <template>
-  <div class="battle-royale-page">
-    <div class="page-header">
-      <h1 class="title">Battle Royale</h1>
-      <p class="subtitle">Last Chess Player Standing Wins!</p>
-      <!-- Auth status indicator -->
-      <div v-if="!user" class="auth-warning">
-        <p class="text-yellow-400 text-sm">⚠️ You must be logged in to create or join tournaments</p>
+  <div class="tournament-shell">
+    <section class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Tournament Mode</p>
+        <h1 class="hero-title">Create your own tournament in AdNU chess</h1>
+        <p class="hero-subtitle">
+          Spin up private or campus-wide events, invite teammates, and go live on the dashboard with a managed bracket.
+        </p>
+        <div class="hero-actions">
+          <button
+            class="action primary"
+            @click="showCreateModal = true"
+            :disabled="!canCreateTournament"
+            :class="{ 'disabled-btn': !canCreateTournament }"
+          >
+            <span class="text-xl leading-none">＋</span>
+            <span>Create tournament</span>
+          </button>
+          <button class="action ghost" @click="scrollToLive">
+            View live brackets
+          </button>
+        </div>
+        <div class="hero-meta">
+          <div class="meta-tile">
+            <p class="meta-label">Live</p>
+            <p class="meta-value">{{ liveCount }}</p>
+            <p class="meta-sub">active tournaments on dashboard</p>
+          </div>
+          <div class="meta-tile">
+            <p class="meta-label">Queued</p>
+            <p class="meta-value">{{ queuedCount }}</p>
+            <p class="meta-sub">waiting for start</p>
+          </div>
+          <div class="meta-tile">
+            <p class="meta-label">Yours</p>
+            <p class="meta-value">{{ myCount }}</p>
+            <p class="meta-sub">joined or hosting</p>
+          </div>
+        </div>
       </div>
-    </div>
-
-    <!-- Tournament Selection View -->
-    <div v-if="!selectedTournament" class="tournaments-container">
-      <!-- Create Tournament Button -->
-      <div class="create-tournament-section">
+      <div class="hero-card">
+        <div class="pill">Tournament Manager</div>
+        <h3 class="hero-card-title">Build, invite, publish</h3>
+        <p class="hero-card-sub">
+          Create the bracket, lock teams, and instantly surface it to the live tournaments feed.
+        </p>
+        <ul class="hero-card-list">
+          <li>Invite players with shareable links</li>
+          <li>Seed matchups and auto-advance winners</li>
+          <li>Bracket updates show live in dashboard</li>
+        </ul>
         <button
+          class="action secondary w-full"
           @click="showCreateModal = true"
-          class="create-btn"
           :disabled="!canCreateTournament"
-          :class="{ 'opacity-50 cursor-not-allowed': !canCreateTournament }"
+          :class="{ 'disabled-btn': !canCreateTournament }"
         >
-          <span class="text-3xl">+</span>
-          <span>Create New Tournament</span>
-          <span v-if="!user" class="text-xs block text-yellow-300">(Login Required)</span>
-          <span v-else-if="!canCreateTournament" class="text-xs block text-yellow-300">(Admin Access Required)</span>
+          Launch bracket editor
         </button>
+        <p v-if="!user" class="permission-note">Login required to create</p>
+        <p v-else-if="!canCreateTournament" class="permission-note">Admin access required</p>
       </div>
+    </section>
 
-      <!-- Active Tournaments List -->
-      <div class="tournaments-list">
-        <h2 class="section-title">Open Tournaments</h2>
+    <!-- Selection View -->
+    <div v-if="!selectedTournament" class="content-grid" ref="liveSectionRef">
+      <section class="panel">
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow">Live tournaments</p>
+            <h2 class="panel-title">Active & waiting brackets</h2>
+            <p class="panel-sub">Join, invite, or open the bracket manager.</p>
+          </div>
+          <button class="action ghost" @click="showCreateModal = true" :disabled="!canCreateTournament" :class="{ 'disabled-btn': !canCreateTournament }">
+            New tournament
+          </button>
+        </header>
+
         <div v-if="loadingTournaments" class="loading-state">
           <div class="spinner"></div>
           <p>Loading tournaments...</p>
         </div>
         <div v-else-if="activeTournaments.length === 0" class="empty-state">
           <div class="empty-icon">🏆</div>
-          <p class="text-xl text-white/80">No active tournaments</p>
-          <p class="text-sm text-white/60">Create one to get started!</p>
+          <p class="empty-title">No active tournaments</p>
+          <p class="empty-sub">Create one to get started.</p>
         </div>
         <div v-else class="tournaments-grid">
-          <div 
-            v-for="tournament in activeTournaments" 
+          <div
+            v-for="tournament in activeTournaments"
             :key="tournament._id"
             class="tournament-card"
           >
-            <div class="tournament-info" @click="selectTournament(tournament._id)">
-              <h3 class="tournament-name">{{ tournament.name }}</h3>
-              <p class="tournament-id">ID: {{ tournament._id }}</p>
-              <div class="tournament-meta">
-                <span class="player-count">
-                  {{ tournament.currentPlayers }} / {{ tournament.maxPlayers }} Players
-                </span>
+            <div class="card-top" @click="selectTournament(tournament._id)">
+              <div class="card-row">
+                <h3 class="tournament-name">{{ tournament.name }}</h3>
                 <span class="status-badge" :class="getStatusClass(tournament.status)">
                   {{ tournament.status }}
                 </span>
               </div>
+              <p class="tournament-id">ID: {{ tournament._id }}</p>
+              <div class="card-row meta">
+                <span class="pill-lite">{{ tournament.currentPlayers }} / {{ tournament.maxPlayers }} players</span>
+                <span class="pill-lite">Best of {{ tournament.bestOf || 1 }}</span>
+              </div>
             </div>
             <div class="tournament-actions">
-              <button @click="selectTournament(tournament._id)" class="join-quick-btn">
-                View Tournament →
+              <button @click="selectTournament(tournament._id)" class="action primary w-full">
+                Open bracket
               </button>
-              <button 
+              <button
                 v-if="tournament.createdBy === currentUserId"
                 @click.stop="deleteTournament(tournament._id)"
-                class="delete-btn"
+                class="action danger"
               >
-                🗑️ Delete
+                Delete
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- My Tournaments -->
-      <div v-if="myTournamentsList.length > 0" class="tournaments-list">
-        <h2 class="section-title">My Tournaments</h2>
+      <section v-if="myTournamentsList.length > 0" class="panel">
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow">Your seats</p>
+            <h2 class="panel-title">Joined & hosting</h2>
+            <p class="panel-sub">Jump back into brackets you manage or joined.</p>
+          </div>
+        </header>
         <div class="tournaments-grid">
-          <div 
-            v-for="tournament in myTournamentsList" 
+          <div
+            v-for="tournament in myTournamentsList"
             :key="tournament._id"
             class="tournament-card"
           >
-            <div class="tournament-info" @click="selectTournament(tournament._id)">
-              <h3 class="tournament-name">{{ tournament.name }}</h3>
-              <p class="tournament-id">ID: {{ tournament._id }}</p>
-              <div class="tournament-meta">
-                <span class="player-count">
-                  {{ tournament.currentPlayers }} / {{ tournament.maxPlayers }} Players
-                </span>
+            <div class="card-top" @click="selectTournament(tournament._id)">
+              <div class="card-row">
+                <h3 class="tournament-name">{{ tournament.name }}</h3>
                 <span class="status-badge" :class="getStatusClass(tournament.status)">
                   {{ tournament.status }}
                 </span>
               </div>
+              <p class="tournament-id">ID: {{ tournament._id }}</p>
+              <div class="card-row meta">
+                <span class="pill-lite">{{ tournament.currentPlayers }} / {{ tournament.maxPlayers }} players</span>
+                <span class="pill-lite">Best of {{ tournament.bestOf || 1 }}</span>
+              </div>
             </div>
             <div class="tournament-actions">
-              <button @click="selectTournament(tournament._id)" class="join-quick-btn">
-                View →
+              <button @click="selectTournament(tournament._id)" class="action primary w-full">
+                Manage
               </button>
-              <button 
+              <button
                 v-if="tournament.createdBy === currentUserId"
                 @click.stop="deleteTournament(tournament._id)"
-                class="delete-btn"
+                class="action danger"
               >
-                🗑️ Delete
+                Delete
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
-    <!-- Tournament Bracket View -->
+    <!-- Bracket View -->
     <div v-else class="tournament-view">
-      <button @click="selectedTournament = null" class="back-btn">
-        ← Back to Tournaments
-      </button>
+      <div class="manager-bar">
+        <div>
+          <p class="eyebrow">Tournament Manager</p>
+          <h2 class="panel-title">{{ currentTournamentData?.name }}</h2>
+          <div class="manager-meta">
+            <span class="pill-lite">{{ currentTournamentData?.currentPlayers }} / {{ currentTournamentData?.maxPlayers }} players</span>
+            <span class="pill-lite">Best of {{ currentTournamentData?.bestOf || 1 }}</span>
+            <span class="status-badge" :class="getStatusClass(currentTournamentData?.status || '')">
+              {{ currentTournamentData?.status }}
+            </span>
+          </div>
+        </div>
+        <div class="manager-actions">
+          <button class="action ghost" @click="selectedTournament = null">Back</button>
+          <button class="action secondary" @click="handleStartTournament(currentTournamentData?.players)">Generate bracket</button>
+        </div>
+      </div>
       <TournamentBracket
         v-if="currentTournamentData"
         :tournament="currentTournamentData"
@@ -134,7 +203,9 @@
     <!-- Create Tournament Modal -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal-content">
-        <h2 class="modal-title">Create Tournament</h2>
+        <div class="pill mb-3">Tournament Builder</div>
+        <h2 class="modal-title">Create bracket</h2>
+        <p class="modal-sub">Name it, set seats, and choose match format. Once saved, it appears on the live dashboard.</p>
         <form @submit.prevent="handleCreateTournament" class="create-form">
           <div class="form-group">
             <label for="tournament-name">Tournament Name</label>
@@ -142,45 +213,45 @@
               id="tournament-name"
               v-model="newTournament.name"
               type="text"
-              placeholder="Enter tournament name..."
+              placeholder="AdNU Clash – Weeknight"
               required
               class="form-input"
             />
           </div>
           
-          <div class="form-group">
-            <label for="max-players">Maximum Players</label>
-            <select
-              id="max-players"
-              v-model.number="newTournament.maxPlayers"
-              class="form-input"
-            >
-              <option :value="4">4 Players</option>
-              <option :value="8">8 Players</option>
-              <option :value="16">16 Players</option>
-              <option :value="32">32 Players</option>
-            </select>
-          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="max-players">Maximum Players</label>
+              <select
+                id="max-players"
+                v-model.number="newTournament.maxPlayers"
+                class="form-input"
+              >
+                <option :value="4">4 Players</option>
+                <option :value="8">8 Players</option>
+                <option :value="16">16 Players</option>
+                <option :value="32">32 Players</option>
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label>Match Format (Best of)</label>
-            <select v-model.number="newTournament.bestOf" class="form-input">
-              <option :value="1">Best of 1 (Single Game)</option>
-              <option :value="3">Best of 3 (First to 2 wins)</option>
-              <option :value="5">Best of 5 (First to 3 wins)</option>
-              <option :value="7">Best of 7 (First to 4 wins)</option>
-            </select>
-            <p class="text-xs text-white/70 mt-1">
-              Winners automatically advance to the next round
-            </p>
+            <div class="form-group">
+              <label>Match Format (Best of)</label>
+              <select v-model.number="newTournament.bestOf" class="form-input">
+                <option :value="1">Best of 1</option>
+                <option :value="3">Best of 3</option>
+                <option :value="5">Best of 5</option>
+                <option :value="7">Best of 7</option>
+              </select>
+              <p class="hint">Winners auto-advance</p>
+            </div>
           </div>
 
           <div class="modal-actions">
-            <button type="button" @click="showCreateModal = false" class="cancel-btn">
+            <button type="button" @click="showCreateModal = false" class="action ghost">
               Cancel
             </button>
-            <button type="submit" class="submit-btn" :disabled="creatingTournament">
-              {{ creatingTournament ? 'Creating...' : 'Create Tournament' }}
+            <button type="submit" class="action primary" :disabled="creatingTournament" :class="{ 'disabled-btn': creatingTournament }">
+              {{ creatingTournament ? 'Creating...' : 'Create tournament' }}
             </button>
           </div>
         </form>
@@ -214,22 +285,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useNuxtApp } from '#app'
 import { useAuth } from '~/composables/useAuth'
-import { useConvex } from '~/composables/useConvex'
 import { api } from '~/convex/_generated/api'
 import type { Id } from '~/convex/_generated/dataModel'
 import TournamentBracket from '~/components/TournamentBracket.vue'
-import { isAdminEmail } from '~/config/admin'
 
 const router = useRouter()
 const { user } = useAuth()
 const { $convex } = useNuxtApp()
 
-// Check if user can create tournaments (admin or authorized)
-const canCreateTournament = computed(() => {
-  if (DEV_MODE.value) return true // Allow in dev mode
-  return user.value && isAdminEmail(user.value.email)
-})
+// Any authenticated player can create a tournament
+const canCreateTournament = computed(() => Boolean(user.value))
 
 const showCreateModal = ref(false)
 const selectedTournament = ref<string | null>(null)
@@ -250,129 +317,53 @@ const newTournament = ref({
   bestOf: 1
 })
 
-// Dev mode - set to true to use mock data for frontend design
-const DEV_MODE = ref(true)
-const MOCK_USER_ID = 'mock-user-1' // Simulated logged-in user
+const liveSectionRef = ref<HTMLElement | null>(null)
+const scrollToLive = () => {
+  liveSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
-const currentUserId = computed(() => {
-  if (DEV_MODE.value) return MOCK_USER_ID
-  return user.value?.id || ''
-})
+const liveCount = computed(() => activeTournaments.value.filter((t) => t.status === 'active').length)
+const queuedCount = computed(() =>
+  activeTournaments.value.filter((t) => t.status === 'waiting' || t.status === 'ready').length,
+)
+const myCount = computed(() => myTournamentsList.value.length)
 
-// Mock data for development
-const mockTournaments = [
-  {
-    _id: 'mock-1',
-    name: 'Ateneo League Championship',
-    status: 'waiting',
-    maxPlayers: 8,
-    currentPlayers: 3,
-    createdBy: 'mock-user-1',
-    bestOf: 3,
-    players: [
-      { userId: 'mock-user-1', name: 'Juan Dela Cruz', elo: 1500, department: 'Computer Science', joinedAt: Date.now(), status: 'active' },
-      { userId: 'mock-user-2', name: 'Maria Santos', elo: 1450, department: 'Engineering', joinedAt: Date.now(), status: 'active' },
-      { userId: 'mock-user-3', name: 'Pedro Reyes', elo: 1600, department: 'Business Admin', joinedAt: Date.now(), status: 'active' },
-    ],
-    rounds: [],
-    currentRound: 0,
-    createdAt: Date.now()
-  },
-  {
-    _id: 'mock-2',
-    name: 'Quick Tournament (Active)',
-    status: 'active',
-    maxPlayers: 4,
-    currentPlayers: 4,
-    createdBy: 'mock-user-2',
-    bestOf: 1,
-    players: [
-      { userId: 'mock-user-1', name: 'You (Mock User)', elo: 1500, department: 'Computer Science', joinedAt: Date.now(), status: 'active' },
-      { userId: 'mock-user-2', name: 'Alice Garcia', elo: 1450, department: 'Mathematics', joinedAt: Date.now(), status: 'active' },
-      { userId: 'mock-user-3', name: 'Bob Tan', elo: 1600, department: 'Engineering', joinedAt: Date.now(), status: 'active' },
-      { userId: 'mock-user-4', name: 'Charlie Wong', elo: 1550, department: 'Business Admin', joinedAt: Date.now(), status: 'active' },
-    ],
-    rounds: [
-      {
-        roundNumber: 1,
-        status: 'active',
-        matches: [
-          {
-            matchId: 'mock-match-1',
-            player1Id: 'mock-user-1',
-            player2Id: 'mock-user-2',
-            status: 'pending',
-            player1Ready: false,
-            player2Ready: false,
-            games: [],
-            player1Score: 0,
-            player2Score: 0
-          },
-          {
-            matchId: 'mock-match-2',
-            player1Id: 'mock-user-3',
-            player2Id: 'mock-user-4',
-            status: 'active',
-            gameId: 'mock-game-2',
-            player1Ready: true,
-            player2Ready: true,
-            games: [{ gameId: 'mock-game-2', winnerId: null }],
-            player1Score: 0,
-            player2Score: 0
-          }
-        ]
-      }
-    ],
-    currentRound: 1,
-    createdAt: Date.now()
-  }
-]
+const currentUserId = computed(() => user.value?.id || '')
 
 const loadTournaments = async () => {
   try {
-    console.log('Loading tournaments...')
-    
-    // Use mock data in dev mode
-    if (DEV_MODE.value) {
-      console.log('Using mock tournament data')
-      activeTournaments.value = mockTournaments
-      loadingTournaments.value = false
-      return
-    }
-    
     const tournaments = await $convex.query(api.tournaments.listActiveTournaments, {})
-    
-    console.log('Tournaments loaded:', tournaments)
-    
-    if (tournaments) {
-      activeTournaments.value = tournaments.filter((t: any) => t.status !== 'completed')
-      
-      if (currentUserId.value) {
-        myTournamentsList.value = tournaments.filter((t: any) =>
-          t.players.some((p: any) => p.userId === currentUserId.value)
-        )
-      }
-      
-      // Update current tournament data if viewing one
-      if (selectedTournament.value) {
-        const current = tournaments.find((t: any) => t._id === selectedTournament.value)
-        if (current) {
-          currentTournamentData.value = current
-          console.log('Updated current tournament data:', current)
-        } else {
-          console.warn('Selected tournament not found:', selectedTournament.value)
-        }
+    const normalized = (tournaments || []).map((t: any) => ({
+      ...t,
+      bestOf: t.bestOf || 1,
+      players: t.players || [],
+      rounds: t.rounds || [],
+    }))
+
+    activeTournaments.value = normalized.filter((t: any) => t.status !== 'completed')
+
+    if (currentUserId.value) {
+      myTournamentsList.value = activeTournaments.value.filter((t: any) =>
+        t.players.some((p: any) => p.userId === currentUserId.value),
+      )
+    } else {
+      myTournamentsList.value = []
+    }
+
+    // Update current tournament data if viewing one
+    if (selectedTournament.value) {
+      const current = activeTournaments.value.find((t: any) => t._id === selectedTournament.value)
+      if (current) {
+        currentTournamentData.value = current
+      } else {
+        selectedTournament.value = null
+        currentTournamentData.value = null
       }
     }
-    
+
     loadingTournaments.value = false
   } catch (error) {
     console.error('Failed to load tournaments:', error)
-    console.error('Error details:', {
-      message: (error as any)?.message,
-      stack: (error as any)?.stack,
-      error
-    })
     loadingTournaments.value = false
   }
 }
@@ -391,9 +382,6 @@ onMounted(async () => {
 })
 
 const handleCreateTournament = async () => {
-  console.log('Creating tournament - User:', user.value)
-  console.log('Current User ID:', currentUserId.value)
-  
   if (!newTournament.value.name.trim()) {
     alert('Please enter a tournament name')
     return
@@ -402,77 +390,26 @@ const handleCreateTournament = async () => {
   creatingTournament.value = true
   
   try {
-    // Mock mode - create fake tournament for design purposes
-    if (DEV_MODE.value) {
-      console.log('Creating mock tournament')
-      const mockId = `mock-${Date.now()}`
-      const newMockTournament = {
-        _id: mockId,
-        name: newTournament.value.name,
-        status: 'waiting',
-        maxPlayers: newTournament.value.maxPlayers,
-        currentPlayers: 0,
-        createdBy: 'mock-user',
-        bestOf: newTournament.value.bestOf,
-        players: [],
-        rounds: [],
-        currentRound: 0,
-        createdAt: Date.now()
-      }
-      
-      mockTournaments.push(newMockTournament)
-      activeTournaments.value = [...mockTournaments]
-      
-      showCreateModal.value = false
-      newTournament.value = { name: '', maxPlayers: 8, bestOf: 1 }
-      
-      setTimeout(() => {
-        selectTournament(mockId)
-      }, 500)
-      
-      creatingTournament.value = false
-      return
-    }
-    
-    // Real backend call
     if (!user.value || !currentUserId.value) {
-      console.error('User not authenticated:', { user: user.value, userId: currentUserId.value })
       alert('Please sign in to create a tournament. You must be logged in.')
       creatingTournament.value = false
       return
     }
-    
-    console.log('Calling createTournament with:', {
-      name: newTournament.value.name,
-      maxPlayers: newTournament.value.maxPlayers,
-      createdBy: currentUserId.value
-    })
-    
+
     const tournamentId = await $convex.mutation(api.tournaments.createTournament, {
       name: newTournament.value.name,
       maxPlayers: newTournament.value.maxPlayers,
-      createdBy: currentUserId.value
+      bestOf: newTournament.value.bestOf,
+      createdBy: currentUserId.value,
     })
 
-    console.log('Tournament created successfully! ID:', tournamentId)
-    
     showCreateModal.value = false
     newTournament.value = { name: '', maxPlayers: 8, bestOf: 1 }
     
     await loadTournaments()
     
-    // Wait a bit for the tournament to be fully loaded
-    setTimeout(() => {
-      console.log('Selecting tournament:', tournamentId)
-      selectTournament(tournamentId)
-    }, 500)
+    selectTournament(tournamentId)
   } catch (error) {
-    console.error('Failed to create tournament:', error)
-    console.error('Error details:', {
-      message: (error as any)?.message,
-      stack: (error as any)?.stack,
-      error
-    })
     alert(`Failed to create tournament: ${(error as any)?.message || 'Unknown error'}. Please try again.`)
   } finally {
     creatingTournament.value = false
@@ -500,24 +437,6 @@ const handleJoinTournament = async () => {
   if (!selectedTournament.value) return
 
   try {
-    // Mock mode - add player to tournament
-    if (DEV_MODE.value) {
-      console.log('Joining mock tournament')
-      const tournament = activeTournaments.value.find(t => t._id === selectedTournament.value)
-      if (tournament && !tournament.players.some((p: any) => p.userId === currentUserId.value)) {
-        tournament.players.push({
-          userId: currentUserId.value,
-          name: 'You (Mock User)',
-          elo: 1500,
-          joinedAt: Date.now(),
-          status: 'active'
-        })
-        tournament.currentPlayers++
-        currentTournamentData.value = { ...tournament }
-      }
-      return
-    }
-
     if (!user.value) return
     await $convex.mutation(api.tournaments.joinTournament, {
       tournamentId: selectedTournament.value as Id<"tournaments">,
@@ -537,18 +456,6 @@ const handleLeaveTournament = async () => {
   if (!selectedTournament.value || !currentUserId.value) return
 
   try {
-    // Mock mode - remove player from tournament
-    if (DEV_MODE.value) {
-      console.log('Leaving mock tournament')
-      const tournament = activeTournaments.value.find(t => t._id === selectedTournament.value)
-      if (tournament) {
-        tournament.players = tournament.players.filter((p: any) => p.userId !== currentUserId.value)
-        tournament.currentPlayers--
-        currentTournamentData.value = { ...tournament }
-      }
-      return
-    }
-
     await $convex.mutation(api.tournaments.leaveTournament, {
       tournamentId: selectedTournament.value as Id<"tournaments">,
       userId: currentUserId.value
@@ -565,38 +472,6 @@ const handleStartTournament = async (seededPlayers?: any[]) => {
   if (!selectedTournament.value) return
 
   try {
-    // Mock mode - generate bracket
-    if (DEV_MODE.value) {
-      console.log('Starting mock tournament with seeded players:', seededPlayers)
-      const tournament = activeTournaments.value.find(t => t._id === selectedTournament.value)
-      if (tournament) {
-        const players = seededPlayers || tournament.players
-        const matches = []
-        
-        // Create first round matches
-        for (let i = 0; i < players.length; i += 2) {
-          matches.push({
-            matchId: `mock-match-${i/2}`,
-            player1Id: players[i].userId,
-            player2Id: players[i + 1]?.userId,
-            status: 'pending',
-            player1Ready: false,
-            player2Ready: false
-          })
-        }
-        
-        tournament.status = 'active'
-        tournament.rounds = [{
-          roundNumber: 1,
-          status: 'active',
-          matches
-        }]
-        tournament.currentRound = 1
-        currentTournamentData.value = { ...tournament }
-      }
-      return
-    }
-
     await $convex.mutation(api.tournaments.startTournament, {
       tournamentId: selectedTournament.value as Id<"tournaments">,
       seededPlayers: seededPlayers || undefined
@@ -619,14 +494,6 @@ const handleStartMatch = async (payload: { roundIndex: number; matchIndex: numbe
 
     if (!match.player1Id || !match.player2Id) {
       alert('Cannot start match - missing players')
-      return
-    }
-
-    // Mock mode - just update local state
-    if (DEV_MODE.value) {
-      console.log('Starting mock match:', match)
-      match.status = 'active'
-      alert('Match would start now! (Mock mode)')
       return
     }
 
@@ -674,21 +541,6 @@ const handlePlayerReady = async (payload: { roundIndex: number; matchIndex: numb
       match.player2Ready = true
     }
 
-    // Mock mode - just update local state
-    if (DEV_MODE.value) {
-      console.log('Player marked as ready (mock mode):', payload.playerId)
-      // Force re-render
-      currentTournamentData.value = { ...tournament }
-      
-      // Auto-start if both ready
-      if (match.player1Ready && match.player2Ready) {
-        setTimeout(() => {
-          handleStartMatch(payload)
-        }, 1000)
-      }
-      return
-    }
-
     // Real backend - save to Convex
     await $convex.mutation(api.tournaments.markPlayerReady, {
       tournamentId: selectedTournament.value as Id<"tournaments">,
@@ -705,10 +557,6 @@ const handlePlayerReady = async (payload: { roundIndex: number; matchIndex: numb
 }
 
 const handleViewGame = (gameId: string) => {
-  if (DEV_MODE.value) {
-    alert('Game view would open here (mock mode)')
-    return
-  }
   router.push(`/game/${gameId}`)
 }
 
@@ -717,12 +565,7 @@ const handleWatchPlayer = (playerId: string | undefined) => {
     alert('No player assigned to this position yet')
     return
   }
-  
-  if (DEV_MODE.value) {
-    alert(`Spectating player: ${playerId}\\n\\nIn live mode, you would see their game perspective.`)
-    return
-  }
-  
+
   // In real mode, navigate to spectator view or open player's active game
   console.log('Watching player:', playerId)
   // TODO: Implement spectator view routing
@@ -731,20 +574,6 @@ const handleWatchPlayer = (playerId: string | undefined) => {
 
 const handleSendInvite = (payload: { playerId: string; playerName: string; tournamentId: string }) => {
   console.log('Sending invite to player:', payload)
-  
-  if (DEV_MODE.value) {
-    // Mock mode - simulate invite notification
-    console.log(`Mock invite sent to ${payload.playerName} for tournament ${payload.tournamentId}`)
-    
-    // Simulate player receiving invite after 2 seconds
-    setTimeout(() => {
-      pendingInviteData.value = payload
-      showAcceptanceModal.value = true
-    }, 2000)
-    return
-  }
-  
-  // Real backend - send invite via Convex
   // TODO: Implement backend invite system
   alert('Invite system will be connected to backend!')
 }
@@ -863,28 +692,7 @@ const getPlayerName = (playerId: string) => {
 
 const handleAcceptInvite = () => {
   if (!pendingInviteData.value) return
-  
-  const payload = pendingInviteData.value
-  const tournament = mockTournaments.find(t => t._id === payload.tournamentId)
-  
-  if (tournament) {
-    tournament.players.push({
-      userId: payload.playerId,
-      name: payload.playerName,
-      elo: 1500,
-      department: 'Invited Player',
-      joinedAt: Date.now(),
-      status: 'active'
-    })
-    tournament.currentPlayers++
-    
-    // Update current tournament data if viewing it
-    if (selectedTournament.value === payload.tournamentId) {
-      currentTournamentData.value = { ...tournament }
-    }
-  }
-  
-  // Close modal
+
   showAcceptanceModal.value = false
   pendingInviteData.value = null
 }
@@ -900,23 +708,6 @@ const deleteTournament = async (tournamentId: string) => {
   }
 
   try {
-    // Mock mode - delete from mock data
-    if (DEV_MODE.value) {
-      console.log('Deleting mock tournament:', tournamentId)
-      const index = mockTournaments.findIndex(t => t._id === tournamentId)
-      if (index > -1) {
-        mockTournaments.splice(index, 1)
-        activeTournaments.value = [...mockTournaments]
-      }
-      
-      // If viewing the deleted tournament, go back
-      if (selectedTournament.value === tournamentId) {
-        selectedTournament.value = null
-      }
-      return
-    }
-    
-    // Real backend call
     await $convex.mutation(api.tournaments.deleteTournament, {
       tournamentId: tournamentId as Id<"tournaments">,
       userId: currentUserId.value
@@ -943,44 +734,113 @@ const getStatusClass = (status: string) => ({
 </script>
 
 <style scoped>
-.battle-royale-page {
-  @apply p-6;
+.tournament-shell {
+  @apply max-w-6xl md:max-w-7xl mx-auto px-4 pb-12 pt-6 space-y-8;
 }
 
-.page-header {
-  @apply text-center mb-12;
+.hero-grid {
+  @apply grid gap-6 md:gap-8 lg:gap-10 md:grid-cols-[1.25fr,0.75fr];
 }
 
-.title {
-  @apply text-5xl md:text-6xl font-bold bg-gradient-to-r from-[#021d94] to-[#ffaa00] bg-clip-text text-transparent mb-4;
+.hero-copy {
+  @apply rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-glass p-6 md:p-8 space-y-5;
 }
 
-.subtitle {
-  @apply text-xl text-slate-600;
+.hero-card {
+  @apply rounded-3xl border border-white/60 bg-gradient-to-br from-[#021d94]/90 via-[#021d94] to-[#1d2bb8] text-white shadow-2xl shadow-[#021d94]/30 p-6 md:p-8 space-y-4;
 }
 
-.tournaments-container {
-  @apply max-w-7xl mx-auto space-y-8;
+.eyebrow {
+  @apply text-[11px] font-semibold uppercase tracking-[0.25em] text-[#021d94]/80;
 }
 
-.create-tournament-section {
-  @apply mb-8;
+.hero-card .eyebrow {
+  @apply text-white/70;
 }
 
-.create-btn {
-  @apply w-full md:w-auto px-8 py-6 rounded-3xl border-2 border-dashed border-white/60 bg-white/70 backdrop-blur-xl shadow-glass hover:border-[#021d94]/50 hover:bg-white/80 transition-all duration-300 flex items-center justify-center gap-4 text-slate-900 font-semibold text-lg;
+.hero-title {
+  @apply text-4xl md:text-5xl font-bold text-slate-900 leading-tight;
 }
 
-.tournaments-list {
-  @apply mb-12;
+.hero-subtitle {
+  @apply text-base md:text-lg text-slate-600 max-w-2xl;
 }
 
-.section-title {
-  @apply text-2xl font-bold text-slate-900 mb-6;
+.hero-actions {
+  @apply flex flex-wrap items-center gap-3;
 }
 
-.loading-state, .empty-state {
-  @apply text-center py-16 text-slate-600;
+.hero-meta {
+  @apply grid grid-cols-3 gap-4 pt-2;
+}
+
+.meta-tile {
+  @apply rounded-2xl border border-white/60 bg-white/80 backdrop-blur p-4 shadow-sm text-slate-800;
+}
+
+.meta-label {
+  @apply text-xs uppercase tracking-[0.18em] text-slate-500 mb-1;
+}
+
+.meta-value {
+  @apply text-3xl font-bold text-[#021d94] leading-none;
+}
+
+.meta-sub {
+  @apply text-xs text-slate-500 mt-1;
+}
+
+.hero-card-title {
+  @apply text-2xl md:text-3xl font-bold;
+}
+
+.hero-card-sub {
+  @apply text-sm md:text-base text-white/80;
+}
+
+.hero-card-list {
+  @apply space-y-2 text-sm md:text-base text-white/90 list-disc list-inside;
+}
+
+.pill {
+  @apply inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white;
+}
+
+.pill-lite {
+  @apply inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700;
+}
+
+.permission-note {
+  @apply text-xs text-white/80;
+}
+
+.content-grid {
+  @apply space-y-8;
+}
+
+.panel {
+  @apply rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-glass p-6 md:p-8;
+}
+
+.panel-head {
+  @apply flex flex-wrap items-center justify-between gap-4 mb-6;
+}
+
+.panel-title {
+  @apply text-2xl font-bold text-slate-900;
+}
+
+.panel-sub {
+  @apply text-sm text-slate-600;
+}
+
+.panel .eyebrow {
+  @apply text-slate-500;
+}
+
+.loading-state,
+.empty-state {
+  @apply text-center py-14 text-slate-600;
 }
 
 .spinner {
@@ -988,124 +848,111 @@ const getStatusClass = (status: string) => ({
 }
 
 .empty-icon {
-  @apply text-6xl mb-4;
+  @apply text-5xl mb-3;
+}
+
+.empty-title {
+  @apply text-xl font-semibold text-slate-800;
+}
+
+.empty-sub {
+  @apply text-sm text-slate-500;
 }
 
 .tournaments-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5;
 }
 
 .tournament-card {
-  @apply rounded-3xl border border-white/60 bg-white/70 backdrop-blur-xl shadow-glass p-6 cursor-pointer transition-all duration-300 hover:border-[#021d94]/50 hover:bg-white/80 hover:shadow-xl hover:-translate-y-1;
+  @apply rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-glass p-5 flex flex-col gap-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#021d94]/50;
 }
 
-.tournament-info {
-  @apply mb-4;
+.card-top {
+  @apply space-y-2 cursor-pointer;
+}
+
+.card-row {
+  @apply flex items-center justify-between gap-3;
+}
+
+.card-row.meta {
+  @apply flex-wrap gap-2;
 }
 
 .tournament-name {
-  @apply text-xl font-bold text-slate-900 mb-3;
+  @apply text-xl font-semibold text-slate-900;
 }
 
 .tournament-id {
-  @apply text-xs text-slate-500 mb-2 font-mono;
-}
-
-.tournament-meta {
-  @apply flex items-center justify-between gap-3 text-sm;
-}
-
-.player-count {
-  @apply text-slate-600;
+  @apply text-xs font-mono text-slate-500;
 }
 
 .status-badge {
-  @apply px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider;
+  @apply px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-[0.12em];
 }
 
 .status-waiting {
-  @apply bg-yellow-500/20 text-yellow-700;
+  @apply bg-yellow-100 text-yellow-700;
 }
 
 .status-ready {
-  @apply bg-green-500/20 text-green-700;
+  @apply bg-green-100 text-green-700;
 }
 
 .status-active {
-  @apply bg-blue-500/20 text-blue-700;
+  @apply bg-blue-100 text-blue-700;
 }
 
 .status-completed {
-  @apply bg-[#021d94]/20 text-[#021d94];
+  @apply bg-slate-900 text-white;
 }
 
 .tournament-actions {
-  @apply flex gap-2 mt-4;
+  @apply flex items-center gap-2;
 }
 
-.join-quick-btn {
-  @apply flex-1 px-4 py-2 rounded-full bg-gradient-to-r from-[#021d94] to-[#ffaa00] text-white font-semibold hover:shadow-lg hover:shadow-[#021d94]/25 transition-all duration-300;
+.manager-bar {
+  @apply flex flex-wrap items-center justify-between gap-4 mb-6 rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl shadow-glass p-5;
 }
 
-.delete-btn {
-  @apply px-4 py-2 rounded-full bg-red-500 text-white font-semibold hover:bg-red-600 transition-all duration-300;
+.manager-meta {
+  @apply flex flex-wrap items-center gap-2 mt-2;
+}
+
+.manager-actions {
+  @apply flex items-center gap-2;
+}
+
+.action {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 font-semibold transition-all duration-200;
+}
+
+.action.primary {
+  @apply bg-gradient-to-r from-[#021d94] to-[#ffaa00] text-white shadow-sm hover:shadow-lg hover:shadow-[#021d94]/25;
+}
+
+.action.secondary {
+  @apply bg-white/80 border border-white/60 text-[#021d94] hover:bg-white;
+}
+
+.action.ghost {
+  @apply border border-white/60 bg-white/70 text-slate-800 hover:border-[#021d94]/40;
+}
+
+.action.danger {
+  @apply bg-red-500 text-white hover:bg-red-600;
+}
+
+.disabled-btn {
+  @apply opacity-60 cursor-not-allowed;
 }
 
 .tournament-view {
-  @apply max-w-[1800px] mx-auto;
-}
-
-.back-btn {
-  @apply mb-6 px-6 py-3 rounded-full bg-white/70 backdrop-blur-xl shadow-glass border border-white/60 text-slate-900 font-semibold hover:bg-white/80 transition-all duration-300;
+  @apply max-w-[1800px] mx-auto space-y-4;
 }
 
 .modal-overlay {
-  @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4;
-}
-
-.modal-content {
-  @apply bg-white/90 backdrop-blur-xl rounded-3xl border border-white/60 shadow-glass p-8 max-w-md w-full;
-}
-
-.modal-title {
-  @apply text-2xl font-bold text-slate-900 mb-6;
-}
-
-.create-form {
-  @apply space-y-6;
-}
-
-.form-group {
-  @apply space-y-2;
-}
-
-.form-group label {
-  @apply block text-sm font-semibold text-slate-700;
-}
-
-.form-input {
-  @apply w-full px-4 py-3 rounded-2xl bg-white/70 border border-white/60 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#021d94] focus:ring-2 focus:ring-[#021d94]/50 transition-all duration-300;
-}
-
-.modal-actions {
-  @apply flex gap-4 mt-8;
-}
-
-.cancel-btn, .submit-btn {
-  @apply flex-1 px-6 py-3 rounded-full font-semibold transition-all duration-300;
-}
-
-.cancel-btn {
-  @apply bg-white/70 text-slate-900 border border-white/60 hover:bg-white/80;
-}
-
-.submit-btn {
-  @apply bg-gradient-to-r from-[#021d94] to-[#ffaa00] text-white hover:shadow-lg hover:shadow-[#021d94]/25 disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-/* ======= INVITE ACCEPTANCE MODAL ======= */
-.modal-overlay {
-  @apply fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999];
+  @apply fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -1114,6 +961,47 @@ const getStatusClass = (status: string) => ({
   to { opacity: 1; }
 }
 
+.modal-content {
+  @apply bg-white/95 backdrop-blur-xl rounded-3xl border border-white/60 shadow-2xl p-8 max-w-2xl w-full space-y-4;
+}
+
+.modal-title {
+  @apply text-3xl font-bold text-slate-900;
+}
+
+.modal-sub {
+  @apply text-sm text-slate-600;
+}
+
+.create-form {
+  @apply space-y-6 pt-2;
+}
+
+.form-group {
+  @apply space-y-2;
+}
+
+.form-row {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.form-group label {
+  @apply block text-sm font-semibold text-slate-700;
+}
+
+.form-input {
+  @apply w-full px-4 py-3 rounded-2xl bg-white/70 border border-white/60 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#021d94] focus:ring-2 focus:ring-[#021d94]/40 transition-all duration-300;
+}
+
+.hint {
+  @apply text-xs text-slate-500 mt-1;
+}
+
+.modal-actions {
+  @apply flex flex-wrap items-center justify-end gap-3 pt-2;
+}
+
+/* Invite acceptance modal */
 .acceptance-modal {
   @apply rounded-3xl shadow-2xl p-12 max-w-lg text-center;
   background: linear-gradient(135deg, #021d94 0%, #4338ca 50%, #6366f1 100%);

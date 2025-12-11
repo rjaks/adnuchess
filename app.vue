@@ -307,7 +307,7 @@
         </Transition>
       </div>
     </header>
-    <main id="main-content" class="relative mx-auto flex-1 max-w-6xl px-4 pb-24 pt-12">
+    <main id="main-content" :class="mainClasses">
       <div class="pointer-events-none absolute inset-x-[-40vw] top-[-10vw] -z-10 h-[50vw] rounded-[40%] bg-gradient-to-br from-white/70 via-transparent to-white/20 blur-3xl"></div>
       <NuxtPage />
     </main>
@@ -412,6 +412,12 @@ const pointer = ref<PointerState>({ x: 720, y: 360 })
 const hideHeaderPaths = ['/welcome', '/login'] as const
 
 const showHeader = computed(() => !hideHeaderPaths.some((path) => currentPath.value.startsWith(path)))
+const isWelcomePage = computed(() => currentPath.value.startsWith('/welcome'))
+const mainClasses = computed(() =>
+  isWelcomePage.value
+    ? 'relative mx-auto flex flex-1 min-h-0 w-full max-w-6xl items-center justify-center overflow-hidden px-4 py-4 md:px-6'
+    : 'relative mx-auto flex-1 max-w-6xl px-4 pb-24 pt-12',
+)
 
 
 const { user: authUser, refresh, logout } = useAuth()

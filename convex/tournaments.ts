@@ -8,12 +8,14 @@ export const createTournament = mutation({
     name: v.string(),
     maxPlayers: v.number(),
     createdBy: v.string(),
+    bestOf: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const tournamentId = await ctx.db.insert("tournaments", {
       name: args.name,
       status: "waiting",
       maxPlayers: args.maxPlayers,
+      bestOf: args.bestOf ?? 1,
       currentPlayers: 0,
       players: [],
       rounds: [],

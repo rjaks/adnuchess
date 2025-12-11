@@ -218,6 +218,7 @@ export default defineSchema({
       v.literal("completed") // Tournament finished
     ),
     maxPlayers: v.number(), // e.g., 16, 32 for bracket sizes
+    bestOf: v.optional(v.number()),
     currentPlayers: v.number(),
     players: v.array(v.object({
       userId: v.string(),
