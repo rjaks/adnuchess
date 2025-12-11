@@ -26,19 +26,24 @@
     <!-- Active Game -->
     <div v-else>
       <!-- Game Status Bar -->
-      <div class="rounded-3xl border border-white/70 bg-white/70 p-4 mb-6 shadow-inner">
-        <div class="flex items-center justify-between">
+      <div class="mb-6 rounded-3xl border border-white/70 bg-white/70 p-4 shadow-inner">
+        <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="flex items-center gap-3">
             <div class="h-2 w-2 rounded-full animate-pulse" :class="connectionStatusClass"></div>
             <span class="text-sm font-medium text-slate-900">{{ connectionStatus }}</span>
-          </div>          <div class="text-right">
-            <p class="text-sm font-semibold text-slate-900">
+          </div>
+          <div class="text-right text-sm leading-tight">
+            <p class="font-semibold text-slate-900">
               {{ isMyTurn ? 'Your turn' : 'Opponent\'s turn' }}
-            </p>            <p class="text-xs text-slate-500">{{ gameState?.gameMode }} • {{ formatGameTime(gameTime) }}</p>
+            </p>
+            <p class="text-xs text-slate-500">{{ gameState?.gameMode }} • {{ formatGameTime(gameTime) }}</p>
           </div>
         </div>
-      </div>      <!-- Chess Board and Move History -->
-      <div class="rounded-4xl border border-white/70 bg-white/60 p-6 shadow-glass backdrop-blur-xl">        <!-- Opponent Clock (Top) -->
+      </div>
+
+      <!-- Chess Board and Move History -->
+      <div class="rounded-4xl border border-white/70 bg-white/60 p-4 shadow-glass backdrop-blur-xl sm:p-6">
+        <!-- Opponent Clock (Top) -->
         <ChessClock
           v-if="gameState?.timeControl"
           :display-time="opponent?.color === 'white' ? whiteFormatted : blackFormatted"
@@ -52,25 +57,28 @@
         />
         
         <!-- Board and Moves Side by Side -->
-        <div class="flex gap-8 items-start justify-center">          <!-- Chess Board Component -->
-          <ChessBoard
-            :board-squares="boardSquares"
-            :my-color="myColor"
-            :arrows="arrows"
-            :highlights="highlights"
-            :review-mode="reviewMode"
-            :can-interact="gameState?.status === 'active'"
-            @square-click="handleSquareClick"
-            @right-mouse-down="handleRightMouseDown"
-            @right-mouse-up="handleRightMouseUp"
-            @drag-start="handleDragStart"
-            @drag-over="handleDragOver"
-            @drag-end="handleDragEnd"
-            @drop="handleDrop"
-          />
+        <div class="flex flex-col gap-6 items-center justify-center lg:flex-row lg:items-start lg:gap-8">
+          <!-- Chess Board Component -->
+          <div class="w-full max-w-[min(92vw,520px)] sm:max-w-[560px] lg:max-w-[600px]">
+            <ChessBoard
+              :board-squares="boardSquares"
+              :my-color="myColor"
+              :arrows="arrows"
+              :highlights="highlights"
+              :review-mode="reviewMode"
+              :can-interact="gameState?.status === 'active'"
+              @square-click="handleSquareClick"
+              @right-mouse-down="handleRightMouseDown"
+              @right-mouse-up="handleRightMouseUp"
+              @drag-start="handleDragStart"
+              @drag-over="handleDragOver"
+              @drag-end="handleDragEnd"
+              @drop="handleDrop"
+            />
+          </div>
 
           <!-- Move History and Game Controls Panel -->
-          <div class="w-80 flex-shrink-0 space-y-4">
+          <div class="w-full max-w-[min(92vw,520px)] space-y-4 lg:w-80 lg:max-w-none lg:flex-shrink-0">
             <!-- Move History Component -->
             <ChessMoveHistory
               v-if="gameState?.moveHistory && gameState.moveHistory.length > 0"
@@ -81,14 +89,16 @@
               @previous-move="goToPreviousMove"
               @next-move="goToNextMove"
               @exit-review="exitReviewMode"
-            />            <!-- Game Controls Component -->
+            />
+            <!-- Game Controls Component -->
             <ChessGameControls
               v-if="isGameInProgress"
               :draw-offered="drawOffered"
               :draw-offer-inbound="drawOfferInbound"
               @offer-draw="offerDraw"
               @resign="confirmResign"
-            />            <!-- Chat Component -->
+            />
+            <!-- Chat Component -->
             <ChessGameChat
               :messages="chatMessages"
               :show-chat="showChat"
@@ -97,7 +107,8 @@
               @toggle-chat="toggleChat"
               @send-message="sendChatMessage"
             />
-          </div>        </div>
+          </div>
+        </div>
         
         <!-- Current Player Clock (Bottom) -->
         <ChessClock

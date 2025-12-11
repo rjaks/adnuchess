@@ -239,12 +239,9 @@
               >
                 Create New Puzzle
               </NuxtLink>
-              <NuxtLink 
-                to="/puzzlenida"
-                class="block w-full px-4 py-2 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition text-center text-sm"
-              >
-                View Player Interface
-              </NuxtLink>
+              <div class="block w-full px-4 py-2 border border-gray-300 text-gray-500 rounded-lg text-center text-sm">
+                PuzzleNida player view (offline)
+              </div>
             </div>
           </div>
         </div>

@@ -279,22 +279,6 @@ const highlightCards: readonly HighlightCard[] = [
 
 const spotlightModes: readonly SpotlightMode[] = [
   {
-    key: 'puzzlenida',
-    title: 'PuzzleNida',
-    tag: 'Puzzle',
-    headline: 'Solve pre-built scenarios',
-    summary: 'Race against the move limit to crack curated AdNU puzzle boards.',
-    description:
-      'PuzzleNida! drops you into handcrafted mid-game positions with a clear objective. Plan precise sequences, beat the move cap, and compare streaks with the campus puzzle ladder.',
-    highlights: [
-      'Pre-arranged boards inspired by collegiate games',
-      'Move counter that rewards perfect solutions',
-      'Hints unlockable with earned puzzle points',
-      'Weekly puzzle packs from club tacticians'
-    ],
-    to: '/puzzlenida'
-  },
-  {
     key: 'battle-royale',
     title: 'Battle Royale',
     tag: 'Draft',
@@ -329,7 +313,7 @@ const spotlightModes: readonly SpotlightMode[] = [
 const featureLinks: readonly FeatureLink[] = [
   { to: '/matchmaking', title: 'Player vs Player', desc: 'Real-time matches against fellow Ateneans' },
   { to: '/play', title: 'Play vs AI', desc: 'Challenge Stockfish engine' },
-  { to: '/modes', title: 'Extra Modes', desc: 'PuzzleNida, Battle Royale, QuizMania' },
+  { to: '/modes', title: 'Extra Modes', desc: 'Battle Royale, QuizMania' },
   { to: '/account', title: 'Account', desc: 'Profile, roles, preferences' },
   { to: '/leaderboard', title: 'Leaderboards', desc: 'Elo tiers and departments' },
   { to: '/faq', title: 'FAQs', desc: 'Rules & help center' },

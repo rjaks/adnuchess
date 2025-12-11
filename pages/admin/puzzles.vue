@@ -32,12 +32,9 @@
           <p class="text-red-300 mb-6 text-sm">
             Only authorized ADNU personnel can create and manage chess puzzles.
           </p>
-          <NuxtLink 
-            to="/puzzlenida" 
-            class="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg text-white transition-colors mr-4"
-          >
-            Play Puzzles
-          </NuxtLink>
+          <div class="bg-gray-700 text-gray-200 px-6 py-2 rounded-lg mr-4 inline-flex items-center justify-center">
+            PuzzleNida is offline
+          </div>
           <NuxtLink 
             to="/" 
             class="bg-gray-600 hover:bg-gray-700 px-6 py-2 rounded-lg text-white transition-colors"
